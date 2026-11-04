@@ -1,0 +1,2952 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Digital Twin | Lovely Professional University</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            nexus: {
+              void: '#030712',
+              card: 'rgba(15, 23, 42, 0.72)',
+              surface: 'rgba(30, 41, 59, 0.5)',
+              cyan: '#00f5ff',
+              cyanGlow: 'rgba(0, 245, 255, 0.35)',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              purple: '#a855f7'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Core Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- React 18 & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel Standalone -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      background-color: #030712;
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+    .hud-glow {
+      text-shadow: 0 0 12px rgba(0, 245, 255, 0.55), 0 0 24px rgba(0, 245, 255, 0.2);
+    }
+    .status-dot-pulse {
+      box-shadow: 0 0 10px #10b981, 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+    .glass-hull {
+      background: radial-gradient(130% 100% at 50% 0%, rgba(30, 41, 59, 0.45) 0%, rgba(15, 23, 42, 0.75) 100%);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    }
+    .glass-hull:hover {
+      border-color: rgba(0, 245, 255, 0.22);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #030712; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #00f5ff; }
+    
+    .section-scroll-container {
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 0.35rem;
+    }
+
+    .sidebar-scroll-container {
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.2; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(1.08); }
+    }
+    .ambient-blur {
+      animation: pulseGlow 8s ease-in-out infinite;
+    }
+    @keyframes warningPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+      50% { transform: scale(1.06); box-shadow: 0 0 18px rgba(245, 158, 11, 0.65); }
+    }
+    .amber-alert-pulse {
+      animation: warningPulse 2.2s infinite ease-in-out;
+    }
+    @keyframes emergencyFlash {
+      0%, 100% { background-color: rgba(225, 29, 72, 0.15); border-color: rgba(225, 29, 72, 0.8); }
+      50% { background-color: rgba(225, 29, 72, 0.35); border-color: rgba(255, 255, 255, 0.95); }
+    }
+    .emergency-broadcast-strip {
+      animation: emergencyFlash 1.6s infinite ease-in-out;
+    }
+    @keyframes sirenRing {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+      50% { transform: scale(1.08); box-shadow: 0 0 24px 6px rgba(244, 63, 94, 0.85); }
+    }
+    .siren-active {
+      animation: sirenRing 1.3s infinite ease-in-out;
+    }
+    @keyframes toastSlideIn {
+      from { transform: translateX(110%) scale(0.96); opacity: 0; }
+      to { transform: translateX(0) scale(1); opacity: 1; }
+    }
+    .toast-animate {
+      animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-[#030712] text-slate-100 antialiased selection:bg-[#00f5ff] selection:text-black min-h-screen relative overflow-hidden">
+  
+  <div class="pointer-events-none fixed -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-cyan-600/10 blur-[140px] ambient-blur z-0"></div>
+  <div class="pointer-events-none fixed -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-purple-600/10 blur-[150px] ambient-blur z-0"></div>
+
+  <div id="root" class="relative z-10"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const Icon = ({ path, className = "h-4 w-4", fill = "none", stroke = "currentColor", strokeWidth = "1.8" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {path}
+      </svg>
+    );
+
+    const Icons = {
+      LayoutDashboard: (props) => <Icon {...props} path={<><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></>} />,
+      Terminal: (props) => <Icon {...props} path={<><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></>} />,
+      Box: (props) => <Icon {...props} path={<><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></>} />,
+      Map: (props) => <Icon {...props} path={<><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></>} />,
+      DoorOpen: (props) => <Icon {...props} path={<><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h20"/><path d="M13 20V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16"/><circle cx="9" cy="12" r="1"/></>} />,
+      Car: (props) => <Icon {...props} path={<><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17H3v-4"/><path d="M9 17h6"/></>} />,
+      BarChart3: (props) => <Icon {...props} path={<><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></>} />,
+      Calendar: (props) => <Icon {...props} path={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></>} />,
+      AlertCircle: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />,
+      BrainCircuit: (props) => <Icon {...props} path={<><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="18" y2="22"/></>} />,
+      Radio: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></>} />,
+      Clock: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+      Layers: (props) => <Icon {...props} path={<><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></>} />,
+      Timer: (props) => <Icon {...props} path={<><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></>} />,
+      Search: (props) => <Icon {...props} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
+      LogOut: (props) => <Icon {...props} path={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>} />,
+      ShieldCheck: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></>} />,
+      User: (props) => <Icon {...props} path={<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>} />,
+      Siren: (props) => <Icon {...props} path={<><path d="M7 12a5 5 0 0 1 10 0v4H7v-4z"/><path d="M5 20h14"/><path d="M12 2v3"/><path d="M4.93 6.93 7.05 9.05"/><path d="m19.07 6.93-2.12 2.12"/></>} />,
+      ShieldAlert: (props) => <Icon {...props} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>} />
+    };
+
+    const facilityCategories = [
+      { id: "all", label: "All Sectors", icon: "🌐" },
+      { id: "academics", label: "Academics & Labs", icon: "🎓" },
+      { id: "food", label: "Food & Snacks", icon: "🍔" },
+      { id: "library", label: "Libraries & Study", icon: "📚" },
+      { id: "medical", label: "Health & Care", icon: "💊" },
+      { id: "parking", label: "Parking Hubs", icon: "🚗" }
+    ];
+
+    const predictiveTimeOffsets = [
+      { id: "now", label: "Live Now", multiplier: 1.0 },
+      { id: "h1", label: "+1 Hour", multiplier: 1.15 },
+      { id: "h2", label: "+2 Hours", multiplier: 1.28 },
+      { id: "h3", label: "+3 Hours", multiplier: 0.85 }
+    ];
+
+    const timeSlots = [
+      { id: "09:00 AM", label: "09:00 AM - 10:00 AM", multiplier: 0.75 },
+      { id: "10:00 AM", label: "10:00 AM - 11:00 AM", multiplier: 0.95 },
+      { id: "11:00 AM", label: "11:00 AM - 12:00 PM", multiplier: 0.85 },
+      { id: "12:00 PM", label: "12:00 PM - 01:00 PM", multiplier: 0.40 },
+      { id: "01:00 PM", label: "01:00 PM - 02:00 PM", multiplier: 0.35 },
+      { id: "02:00 PM", label: "02:00 PM - 03:00 PM", multiplier: 0.88 },
+      { id: "03:00 PM", label: "03:00 PM - 04:00 PM", multiplier: 0.60 },
+      { id: "04:00 PM", label: "04:00 PM - 05:00 PM", multiplier: 0.30 }
+    ];
+
+    const transformShape = (coords, targetCenterLon, targetCenterLat, scaleFactor = 1.0) => {
+      const origCenterLon = coords.reduce((acc, p) => acc + p[0], 0) / coords.length;
+      const origCenterLat = coords.reduce((acc, p) => acc + p[1], 0) / coords.length;
+      return coords.map(p => {
+        const lon = targetCenterLon + (p[0] - origCenterLon) * scaleFactor;
+        const lat = targetCenterLat + (p[1] - origCenterLat) * scaleFactor;
+        return [Number(lon.toFixed(7)), Number(lat.toFixed(7))];
+      });
+    };
+
+    const rawMallOriginalShape = [[75.7042081,31.2554916],[75.7055197,31.2554778],[75.705686,31.2557369],[75.7056082,31.2558011],[75.7042832,31.2556154],[75.7042081,31.2554916]];
+    const rawBusinessOriginalShape = [[75.7085538,31.2586361],[75.7086996,31.2585176],[75.7091072,31.2584923],[75.7091105,31.2585913],[75.7090313,31.2586557],[75.7090779,31.2588662],[75.7088765,31.2589038],[75.7087497,31.2588144],[75.7086435,31.2587092],[75.7085538,31.2586361]];
+
+    const campusFeatures = [
+      {
+        id: "lpu-lib",
+        buildingNo: 10,
+        name: "Central Library (Block 10)",
+        category: "library",
+        levels: 10,
+        type: "Study Center",
+        capacity: 1800,
+        baseOccupancy: 1540,
+        amenities: ["Silent Zones", "Digital Hub", "Audio-Visual Archive"],
+        coordinates: [[75.7026329,31.2523048],[75.7031103,31.2519838],[75.7035609,31.252142],[75.7036226,31.2520411],[75.7032096,31.2518944],[75.7037058,31.251633],[75.7038104,31.2518554],[75.7039364,31.2518072],[75.7038238,31.2515688],[75.7042422,31.2513395],[75.7042476,31.2519196],[75.7036897,31.2522956],[75.7026329,31.2523048]]
+      },
+      {
+        id: "lpu-cse-complex",
+        buildingNo: 34,
+        subBlocks: "Blocks 33 - 38",
+        name: "Computer Science & Engineering (Blocks 33-38)",
+        category: "academics",
+        levels: 8,
+        type: "School of Computing & Engineering Mega-Block",
+        capacity: 3800,
+        baseOccupancy: 3120,
+        amenities: ["Sub-Blocks 33-38", "Supercomputing & High-Performance Lab", "Amphitheatre Courtyard", "Apple & Cloud Ecosystem Studios", "AI & NLP Cleanrooms"],
+        coordinates: [
+          [75.7018, 31.2528],
+          [75.7033, 31.2530],
+          [75.7048, 31.2524],
+          [75.7046, 31.2512],
+          [75.7041, 31.2511],
+          [75.7039, 31.2515],
+          [75.7032, 31.2516],
+          [75.7024, 31.2521],
+          [75.7018, 31.2528]
+        ]
+      },
+      {
+        id: "lpu-mall",
+        buildingNo: 15,
+        name: "LPU Mall",
+        category: "food",
+        levels: 10,
+        type: "Commercial & Dining",
+        capacity: 2500,
+        baseOccupancy: 2180,
+        amenities: ["Subway", "Domino's", "Student Mess", "Cafe Coffee Day"],
+        coordinates: transformShape(rawMallOriginalShape, 75.7042, 31.2570, 1.0)
+      },
+      {
+        id: "lpu-mgmt",
+        buildingNo: 28,
+        name: "School of Business",
+        category: "academics",
+        levels: 6,
+        type: "Management Suites",
+        capacity: 1500,
+        baseOccupancy: 1100,
+        amenities: ["Trading Terminal", "Case Study Suites", "Incubator Lab"],
+        coordinates: transformShape(rawBusinessOriginalShape, 75.7046, 31.2550, 1.85)
+      },
+      {
+        id: "lpu-fashion",
+        buildingNo: 26,
+        name: "Multimedia & Fashion Studio",
+        category: "academics",
+        levels: 6,
+        type: "Design & Creative Arts Hub",
+        capacity: 900,
+        baseOccupancy: 590,
+        amenities: ["Ramp & Runway Auditorium", "VFX & Motion-Capture Stage", "Apparel Prototyping Workshop", "Color-Grading Darkrooms"],
+        coordinates: [[75.7058, 31.2555], [75.7070, 31.2555], [75.7070, 31.2545], [75.7058, 31.2545], [75.7058, 31.2555]]
+      },
+      {
+        id: "lpu-pharm",
+        buildingNo: 22,
+        name: "Institute of Pharmacy",
+        category: "academics",
+        levels: 5,
+        type: "Bio-Sciences",
+        capacity: 950,
+        baseOccupancy: 610,
+        amenities: ["Pharmaceutics Lab", "Bio-Analytical Suite", "Triage Counter"],
+        coordinates: [[75.7074243,31.2574618],[75.7075299,31.2576526],[75.707371,31.2577089],[75.706998,31.2577685],[75.7068625,31.2577255],[75.7070254,31.2575599],[75.7074243,31.2574618]]
+      },
+      {
+        id: "lpu-health",
+        buildingNo: 18,
+        name: "Uni Health Centre",
+        category: "medical",
+        levels: 4,
+        hasCanopy: true,
+        type: "Campus Healthcare Clinic",
+        capacity: 650,
+        baseOccupancy: 340,
+        amenities: ["24/7 Emergency Ward", "Diagnostic Triage", "Pharmacy Counter", "Trauma Unit"],
+        coordinates: [[75.7077, 31.2576], [75.7088, 31.2576], [75.7088, 31.2566], [75.7077, 31.2566], [75.7077, 31.2576]]
+      },
+      {
+        id: "prk-hub-north",
+        buildingNo: 50,
+        name: "North Gateway Parking Hub",
+        category: "parking",
+        levels: 2,
+        type: "Multi-Level Auto Bay",
+        capacity: 500,
+        baseOccupancy: 420,
+        amenities: ["EV Fast Chargers", "Automated RFID Entry", "24/7 Security"],
+        coordinates: [[75.7060, 31.2595], [75.7075, 31.2595], [75.7075, 31.2590], [75.7060, 31.2590], [75.7060, 31.2595]]
+      },
+      {
+        id: "prk-hub-south",
+        buildingNo: 51,
+        name: "South Residential Parking Bay",
+        category: "parking",
+        levels: 1,
+        type: "Surface Open Lot",
+        capacity: 350,
+        baseOccupancy: 280,
+        amenities: ["Two-Wheeler Shelter", "Solar Canopy", "Air Pump"],
+        coordinates: [[75.7015, 31.2495], [75.7030, 31.2495], [75.7030, 31.2490], [75.7015, 31.2490], [75.7015, 31.2495]]
+      },
+      {
+        id: "prk-hub-east",
+        buildingNo: 52,
+        name: "East Sports Arena Parking",
+        category: "parking",
+        levels: 2,
+        type: "Stadium Surface Lot",
+        capacity: 600,
+        baseOccupancy: 390,
+        amenities: ["Bus Terminal", "EV Chargers", "Visitor Kiosk"],
+        coordinates: [[75.7090, 31.2550], [75.7102, 31.2550], [75.7102, 31.2542], [75.7090, 31.2542], [75.7090, 31.2550]]
+      }
+    ];
+
+    const campusRoads = [
+      { id: "road-main", width: 14, color: 0x334155, coordinates: [[75.7000, 31.2485], [75.7020, 31.2520], [75.7042, 31.2558], [75.7070, 31.2565], [75.7098, 31.2572]] },
+      { id: "road-spine", width: 11, color: 0x1e293b, coordinates: [[75.7042, 31.2540], [75.7042, 31.2580], [75.7070, 31.2585], [75.7098, 31.2588]] }
+    ];
+
+    const campusPedestrianPaths = [
+      { id: "path-1", coordinates: [[75.7035, 31.2521], [75.7038, 31.2538], [75.7042, 31.2555]] },
+      { id: "path-south-strip", coordinates: [[75.7046, 31.2550], [75.7058, 31.2550], [75.7070, 31.2550]] },
+      { id: "path-corridor", coordinates: [[75.7042, 31.2565], [75.7052, 31.2565], [75.7070, 31.2568], [75.7082, 31.2568]] },
+      { id: "path-cse", coordinates: [[75.7020, 31.2525], [75.7030, 31.2523], [75.7035, 31.2521]] }
+    ];
+
+    const campusEnvironmentObjects = [
+      { type: "tree", coordinates: [75.7030, 31.2528], scale: 1.2 },
+      { type: "tree", coordinates: [75.7036, 31.2534], scale: 1.3 },
+      { type: "tree", coordinates: [75.7052, 31.2549], scale: 1.1 },
+      { type: "tree", coordinates: [75.7061, 31.2565], scale: 1.5 },
+      { type: "tree", coordinates: [75.7072, 31.2564], scale: 1.1 }
+    ];
+
+    const generateMultiFloorRooms = (bId, bNo, bName, totalFloors, roomTypes) => {
+      const generated = [];
+      for (let f = 1; f <= totalFloors; f++) {
+        for (let r = 1; r <= 10; r++) {
+          const roomSuffix = `${f}${r < 10 ? '0' + r : r}`;
+          const typeIndex = (f * 10 + r) % roomTypes.length;
+          const seed = (bNo * 11 + f * 17 + r * 23) % 100;
+          const baseRate = 0.20 + (seed / 100) * 0.75;
+          const isOccupied = baseRate > 0.52;
+          generated.push({
+            id: `rm-${bNo}-${roomSuffix}`,
+            roomNumber: `${bNo}: ${roomSuffix}`,
+            buildingId: bId,
+            buildingName: bName,
+            floor: f,
+            type: roomTypes[typeIndex],
+            capacity: 40 + ((f * 7 + r * 3) % 45),
+            currentStatus: isOccupied ? 'OCCUPIED' : 'AVAILABLE',
+            nextAvailableTime: isOccupied ? `Open at ${((r % 4) + 1)}:30 PM` : 'Available Now',
+            baseOccupancyRate: baseRate
+          });
+        }
+      }
+      return generated;
+    };
+
+    const cseSubBlocksConfig = [
+      { blockNo: 33, floors: 5 },
+      { blockNo: 34, floors: 8 },
+      { blockNo: 35, floors: 6 },
+      { blockNo: 36, floors: 4 },
+      { blockNo: 37, floors: 7 },
+      { blockNo: 38, floors: 5 }
+    ];
+
+    const cseRoomTypes = [
+      'Data Structures & Algorithms Lab', 'AI & Neural Systems Bay', 'Full-Stack Software Studio', 'Cloud & Distributed Clusters',
+      'Computer Vision & Graphics Suite', 'Cybersecurity Sandbox', 'Compiler Design Hall', 'Operating Systems Lab',
+      'Database Architecture Room', 'IoT & Embedded Robotics Lab'
+    ];
+
+    const businessRoomTypes = [
+      'Financial Markets Lab', 'Executive Case Room', 'Marketing Analytics Suite', 'Corporate Strategy Hall',
+      'Fintech Incubation Suite', 'Venture Capital Studio', 'Business Law Seminar Room', 'HR Analytics Bay',
+      'Supply Chain Simulator Lab', 'Behavioral Economics Lab'
+    ];
+
+    const pharmacyRoomTypes = [
+      'Bio-Analytical Chemistry Suite', 'Pharmacognosy Research Lab', 'Pharmaceutics Preparation Lab', 'Clinical Pharmacology Lecture',
+      'Toxicology & Drug Assay Room', 'Medicinal Chemistry Lab', 'Microbiology & Sterility Bay', 'Pharmaceutical Formulation Room',
+      'Pharmacokinetics Lab', 'Quality Assurance Cleanroom'
+    ];
+
+    const fashionRoomTypes = [
+      '3D CAD Garment Styling Bay', 'Textile Weaving & Draping Lab', 'VFX Motion-Capture & Chroma Suite', 'Animation & Render Farm Lab',
+      'Fashion Runways & Lighting Arena', 'Pattern Drafting Workshop', 'Sound Stage & Audio Scoring Studio', 'Digital Color-Grading Darkroom',
+      'Apparel Prototyping Workshop', 'VR/AR Creative Media Studio'
+    ];
+
+    const initialRooms = [
+      ...cseSubBlocksConfig.flatMap(sub => 
+        generateMultiFloorRooms('lpu-cse-complex', sub.blockNo, `CSE (Block ${sub.blockNo})`, sub.floors, cseRoomTypes)
+      ),
+      ...generateMultiFloorRooms('lpu-mgmt', 28, 'School of Business', 6, businessRoomTypes),
+      ...generateMultiFloorRooms('lpu-pharm', 22, 'Institute of Pharmacy', 5, pharmacyRoomTypes),
+      ...generateMultiFloorRooms('lpu-fashion', 26, 'Multimedia & Fashion Studio', 6, fashionRoomTypes)
+    ];
+
+    const initialParking = [
+      { id: 'prk-mall', name: 'Mall Forecourt', totalSpaces: 180, occupiedSpaces: 165, evTotal: 18, evFree: 2, status: 'SATURATED' },
+      { id: 'prk-lib', name: 'Central Library Terminal', totalSpaces: 140, occupiedSpaces: 92, evTotal: 12, evFree: 4, status: 'NOMINAL' },
+      { id: 'prk-hub-north', name: 'North Gateway Parking Hub', totalSpaces: 500, occupiedSpaces: 420, evTotal: 30, evFree: 8, status: 'NOMINAL' }
+    ];
+
+    const initialEvents = [
+      { id: 'evt-1', title: 'National Hackathon 2026', location: 'CSE Mega-Block (Courtyard)', time: '10:00 AM - 08:00 PM', expectedCrowd: 1250, currentAttendance: 1024, status: 'IN PROGRESS' },
+      { id: 'evt-2', title: 'Robotics Design Showcase', location: 'Central Library Foyer', time: '02:00 PM - 05:00 PM', expectedCrowd: 450, currentAttendance: 110, status: 'SCHEDULED' }
+    ];
+
+    const initialIssues = [
+      { id: 'iss-1', title: 'HVAC Thermal Trip in Server Lab', location: 'School of Business • Floor 5 (Room 505)', priority: 'CRITICAL', category: 'HVAC & Climate', status: 'IN PROGRESS', description: 'Thermal probe ambient reading 31.8°C.' }
+    ];
+
+    const initialAIForecasts = [
+      { id: 'fc-lib', location: 'Central Library', currentOccupancyPct: 86, predictedOccupancyPct: 96, riskLevel: 'HIGH', recommendation: 'Trigger overflow redirection to CSE Annex.' },
+      { id: 'fc-mall', location: 'LPU Mall Food Court', currentOccupancyPct: 62, predictedOccupancyPct: 91, riskLevel: 'HIGH', recommendation: 'Pre-allocate secondary dining counters for lunch window surge.' },
+      { id: 'fc-mgmt', location: 'School of Business Suites', currentOccupancyPct: 45, predictedOccupancyPct: 78, riskLevel: 'MEDIUM', recommendation: 'Schedule HVAC chiller unit ramp-up for executive case presentations.' }
+    ];
+
+    const initialSensorAnomalies = [
+      {
+        id: 'anom-1',
+        location: 'Uni Health Centre - Ground Trauma Corridor',
+        sensorSource: 'Ultrasonic Motion Cluster #UH-02',
+        typicalBaselinePct: 15,
+        liveObservedPct: 88,
+        spikeFactor: '5.8x Spike',
+        timestamp: '2 mins ago',
+        diagnosis: 'Sudden unexpected crowd surge in a generally low-density medical corridor.',
+        severity: 'CRITICAL'
+      },
+      {
+        id: 'anom-2',
+        location: 'Multimedia Studio 26 - Floor 4 Animation Cleanroom',
+        sensorSource: 'Optical People-Counter AP-26-F4',
+        typicalBaselinePct: 18,
+        liveObservedPct: 82,
+        spikeFactor: '4.5x Spike',
+        timestamp: '5 mins ago',
+        diagnosis: 'Unscheduled mass student assemblage detected outside standard timetable parameters.',
+        severity: 'HIGH'
+      },
+      {
+        id: 'anom-3',
+        location: 'Central Library - Basement Digital Archive',
+        sensorSource: 'PIR Grid Sensor #LIB-B1',
+        typicalBaselinePct: 12,
+        liveObservedPct: 65,
+        spikeFactor: '5.4x Spike',
+        timestamp: '11 mins ago',
+        diagnosis: 'Spontaneous density anomaly in dedicated quiet archive zone.',
+        severity: 'MEDIUM'
+      }
+    ];
+
+    const Badge = ({ children, variant = 'default', className = '' }) => {
+      const v = {
+        default: 'bg-slate-800/80 text-slate-300 border-white/10',
+        green: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.25)]',
+        yellow: 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]',
+        red: 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.3)]',
+        purple: 'bg-purple-500/10 text-purple-300 border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.25)]',
+        cyan: 'bg-cyan-500/10 text-cyan-300 border-cyan-400/30 shadow-[0_0_12px_rgba(0,245,255,0.25)]'
+      };
+      return (
+        <span className={`inline-flex items-center font-mono font-semibold tracking-wider uppercase px-2 py-0.5 text-[10px] rounded-md border ${v[variant] || v.default} ${className}`}>
+          {children}
+        </span>
+      );
+    };
+
+    const ProgressBar = ({ value = 0, max = 100 }) => {
+      const pct = Math.min(100, Math.max(0, Math.round((value / max) * 100)));
+      const getColor = () => {
+        if (pct >= 85) return 'bg-gradient-to-r from-amber-500 via-rose-500 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)]';
+        if (pct >= 60) return 'bg-gradient-to-r from-cyan-400 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.35)]';
+        return 'bg-gradient-to-r from-emerald-400 to-cyan-400 shadow-[0_0_10px_rgba(0,245,255,0.4)]';
+      };
+      return (
+        <div className="w-full bg-slate-900/90 rounded-full overflow-hidden border border-white/[0.08] p-[1.5px] h-2">
+          <div className={`h-full rounded-full transition-all duration-700 ${getColor()}`} style={{ width: `${pct}%` }} />
+        </div>
+      );
+    };
+
+    // --- 3D ENGINE ---
+    function CampusTwin3D({ onSelectBuilding, selectedBuilding, selectedCategory, timeOffsetMultiplier, activeEmergency }) {
+      const containerRef = useRef(null);
+
+      useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const w = container.clientWidth || 700;
+        const h = container.clientHeight || 500;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x030712);
+        scene.fog = new THREE.FogExp2(0x030712, 0.0011);
+
+        const camera = new THREE.PerspectiveCamera(40, w / h, 1, 3000);
+        let spherical = { radius: 460, theta: 0.82, phi: 1.12 };
+
+        const updateCameraPos = () => {
+          spherical.phi = Math.max(0.15, Math.min(Math.PI / 2.05, spherical.phi));
+          camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+          camera.position.y = spherical.radius * Math.cos(spherical.phi);
+          camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+          camera.lookAt(0, 30, 0);
+        };
+        updateCameraPos();
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0x0e172a, 3.8));
+        const keyLight = new THREE.DirectionalLight(0x00f5ff, 2.5);
+        keyLight.position.set(240, 480, 200);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xa855f7, 1.6);
+        fillLight.position.set(-240, 240, -200);
+        scene.add(fillLight);
+
+        const pedestalGeo = new THREE.CylinderGeometry(400, 410, 8, 64);
+        const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x080e1a, roughness: 0.85, metalness: 0.15 });
+        const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+        pedestal.position.y = -4;
+        scene.add(pedestal);
+
+        const edgeRingGeo = new THREE.RingGeometry(398, 402, 64);
+        const edgeRingMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+        const edgeRing = new THREE.Mesh(edgeRingGeo, edgeRingMat);
+        edgeRing.rotation.x = -Math.PI / 2;
+        edgeRing.position.y = 0.2;
+        scene.add(edgeRing);
+
+        const refLon = 75.7055;
+        const refLat = 31.2555;
+        const scale = 52000;
+
+        const to3D = (lon, lat) => ({
+          x: (lon - refLon) * scale,
+          y: (lat - refLat) * scale
+        });
+
+        campusRoads.forEach((road) => {
+          const points3D = road.coordinates.map(pt => {
+            const p = to3D(pt[0], pt[1]);
+            return new THREE.Vector3(p.x, 0.4, -p.y);
+          });
+          const curve = new THREE.CatmullRomCurve3(points3D);
+          const roadGeo = new THREE.TubeGeometry(curve, 64, road.width * 0.45, 8, false);
+          roadGeo.scale(1, 0.08, 1);
+          scene.add(new THREE.Mesh(roadGeo, new THREE.MeshStandardMaterial({ color: road.color, roughness: 0.85, metalness: 0.1 })));
+        });
+
+        campusPedestrianPaths.forEach((path) => {
+          const pathPoints = path.coordinates.map(pt => {
+            const p = to3D(pt[0], pt[1]);
+            return new THREE.Vector3(p.x, 0.5, -p.y);
+          });
+          const curve = new THREE.CatmullRomCurve3(pathPoints);
+          const pathGeo = new THREE.TubeGeometry(curve, 32, 1.8, 6, false);
+          pathGeo.scale(1, 0.08, 1);
+          scene.add(new THREE.Mesh(pathGeo, new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 0.35, transparent: true, opacity: 0.65 })));
+        });
+
+        campusEnvironmentObjects.forEach((obj) => {
+          if (obj.type === "tree") {
+            const p = to3D(obj.coordinates[0], obj.coordinates[1]);
+            const treeGroup = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.2, 8, 5), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+            trunk.position.y = 4;
+            treeGroup.add(trunk);
+            const foliage = new THREE.Mesh(new THREE.ConeGeometry(6 * obj.scale, 14 * obj.scale, 5), new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.4, emissive: 0x059669, emissiveIntensity: 0.2 }));
+            foliage.position.y = 12 * obj.scale;
+            treeGroup.add(foliage);
+            treeGroup.position.set(p.x, 0, -p.y);
+            scene.add(treeGroup);
+          }
+        });
+
+        const meshes = [];
+
+        campusFeatures.forEach((feat) => {
+          const shape = new THREE.Shape();
+          let centerX = 0, centerY = 0;
+          feat.coordinates.forEach((pt, i) => {
+            const p = to3D(pt[0], pt[1]);
+            centerX += p.x;
+            centerY += p.y;
+            if (i === 0) shape.moveTo(p.x, p.y);
+            else shape.lineTo(p.x, p.y);
+          });
+          centerX /= feat.coordinates.length;
+          centerY /= feat.coordinates.length;
+
+          const isParking = feat.category === "parking";
+          const height = isParking ? 3.5 : feat.levels * 7.5;
+          const extrudeSettings = {
+            depth: height,
+            bevelEnabled: !isParking,
+            bevelSegments: 2,
+            steps: 1,
+            bevelSize: 0.6,
+            bevelThickness: 0.6
+          };
+
+          const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+          geo.rotateX(-Math.PI / 2);
+
+          const isEmergencyBlock = activeEmergency && activeEmergency.buildingId === feat.id;
+          const isSelected = selectedBuilding && selectedBuilding.id === feat.id;
+          const isCategoryMatch = selectedCategory === "all" || feat.category === selectedCategory;
+
+          const predictedOcc = Math.min(feat.capacity, Math.round(feat.baseOccupancy * timeOffsetMultiplier));
+          const pct = predictedOcc / feat.capacity;
+          const defaultHexColor = isParking ? 0xf59e0b : (pct > 0.85 ? 0xf43f5e : pct > 0.65 ? 0xf59e0b : 0x00f5ff);
+          const hexColor = isEmergencyBlock ? 0xe11d48 : defaultHexColor;
+
+          const mat = new THREE.MeshStandardMaterial({
+            color: isEmergencyBlock ? 0xff0033 : (isSelected ? 0xffffff : (isCategoryMatch ? hexColor : 0x1e293b)),
+            metalness: isCategoryMatch ? 0.35 : 0.1,
+            roughness: 0.25,
+            transparent: true,
+            opacity: isEmergencyBlock ? 0.95 : (isSelected ? 0.98 : (isCategoryMatch ? 0.88 : 0.15)),
+            emissive: isEmergencyBlock ? 0xff0033 : (isSelected ? 0x00f5ff : (isCategoryMatch ? hexColor : 0x000000)),
+            emissiveIntensity: isEmergencyBlock ? 0.85 : (isSelected ? 0.6 : (isCategoryMatch ? 0.3 : 0.0))
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.userData = { ...feat, currentOccupancy: predictedOcc };
+          scene.add(mesh);
+
+          const wireGeo = new THREE.EdgesGeometry(geo);
+          const wireMat = new THREE.LineBasicMaterial({
+            color: isEmergencyBlock ? 0xffffff : (isSelected ? 0xffffff : (isCategoryMatch ? hexColor : 0x334155)),
+            transparent: true,
+            opacity: isEmergencyBlock ? 1.0 : (isSelected ? 0.95 : (isCategoryMatch ? 0.6 : 0.1))
+          });
+          mesh.add(new THREE.LineSegments(wireGeo, wireMat));
+
+          if (feat.hasCanopy) {
+            const canopyGeo = new THREE.BoxGeometry(28, 2.2, 16);
+            const canopyMat = new THREE.MeshStandardMaterial({
+              color: isEmergencyBlock ? 0xff0033 : (isSelected ? 0x00f5ff : 0x475569),
+              metalness: 0.85,
+              roughness: 0.2
+            });
+            const canopyMesh = new THREE.Mesh(canopyGeo, canopyMat);
+            canopyMesh.position.set(centerX + 3, height + 4.5, -centerY - 4);
+            canopyMesh.rotation.x = -0.08;
+            canopyMesh.rotation.y = 0.12;
+            mesh.add(canopyMesh);
+
+            const trussGeo = new THREE.EdgesGeometry(canopyGeo);
+            const trussMat = new THREE.LineBasicMaterial({ color: isEmergencyBlock ? 0xffffff : 0x00f5ff, linewidth: 2 });
+            canopyMesh.add(new THREE.LineSegments(trussGeo, trussMat));
+          }
+
+          meshes.push(mesh);
+        });
+
+        let isDragging = false;
+        let prevMouse = { x: 0, y: 0 };
+
+        const onMouseDown = (e) => {
+          isDragging = true;
+          prevMouse = { x: e.clientX, y: e.clientY };
+        };
+
+        const onMouseMove = (e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - prevMouse.x;
+          const dy = e.clientY - prevMouse.y;
+          spherical.theta -= dx * 0.006;
+          spherical.phi -= dy * 0.006;
+          updateCameraPos();
+          prevMouse = { x: e.clientX, y: e.clientY };
+        };
+
+        const onMouseUp = (e) => {
+          if (!isDragging) return;
+          isDragging = false;
+          const rect = renderer.domElement.getBoundingClientRect();
+          const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, camera);
+          const hits = raycaster.intersectObjects(meshes);
+          if (hits.length > 0) {
+            onSelectBuilding(hits[0].object.userData);
+          }
+        };
+
+        const onWheel = (e) => {
+          e.preventDefault();
+          spherical.radius += e.deltaY * 0.4;
+          spherical.radius = Math.max(120, Math.min(750, spherical.radius));
+          updateCameraPos();
+        };
+
+        const dom = renderer.domElement;
+        dom.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        dom.addEventListener('wheel', onWheel);
+
+        let animId;
+        const render = () => {
+          animId = requestAnimationFrame(render);
+          renderer.render(scene, camera);
+        };
+        render();
+
+        const onResize = () => {
+          if (!container) return;
+          camera.aspect = container.clientWidth / container.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(container.clientWidth, container.clientHeight);
+        };
+        window.addEventListener('resize', onResize);
+
+        return () => {
+          cancelAnimationFrame(animId);
+          window.removeEventListener('resize', onResize);
+          dom.removeEventListener('mousedown', onMouseDown);
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          dom.removeEventListener('wheel', onWheel);
+          if (container.contains(dom)) container.removeChild(dom);
+          renderer.dispose();
+        };
+      }, [selectedBuilding, selectedCategory, timeOffsetMultiplier, activeEmergency]);
+
+      return (
+        <div className="relative w-full h-[500px] rounded-2xl overflow-hidden glass-hull">
+          <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+          <div className="absolute top-4 left-4 pointer-events-none flex flex-col gap-1 z-10">
+            <Badge variant="cyan">3D PREDICTIVE ECOSYSTEM</Badge>
+            <span className="text-[11px] font-mono text-slate-400">Reflecting selected predictive time offset</span>
+          </div>
+        </div>
+      );
+    }
+
+    // --- 2D CARTOGRAPHIC SCHEMATIC ---
+    function CampusTwin2D({ onSelectBuilding, selectedBuilding, selectedCategory, timeOffsetMultiplier, activeEmergency }) {
+      const minLon = 75.7010, maxLon = 75.7100;
+      const minLat = 31.2505, maxLat = 31.2600;
+      const svgW = 800, svgH = 500;
+
+      const project = (lon, lat) => {
+        const x = ((lon - minLon) / (maxLon - minLon)) * (svgW - 80) + 40;
+        const y = svgH - (((lat - minLat) / (maxLat - minLat)) * (svgH - 80) + 40);
+        return { x, y };
+      };
+
+      return (
+        <div className="relative w-full h-[500px] rounded-2xl overflow-hidden glass-hull flex items-center justify-center">
+          <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full h-full select-none">
+            {campusRoads.map(road => {
+              const dStr = road.coordinates.map((pt, i) => {
+                const p = project(pt[0], pt[1]);
+                return `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
+              }).join(" ");
+              return (
+                <g key={road.id}>
+                  <path d={dStr} stroke="#1e293b" strokeWidth={road.width * 1.5} fill="none" strokeLinecap="round" />
+                  <path d={dStr} stroke="rgba(0, 245, 255, 0.4)" strokeWidth="1.5" strokeDasharray="6 4" fill="none" />
+                </g>
+              );
+            })}
+
+            {campusPedestrianPaths.map((path, idx) => {
+              const dStr = path.coordinates.map((pt, i) => {
+                const p = project(pt[0], pt[1]);
+                return `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
+              }).join(" ");
+              return (
+                <path key={`path-2d-${idx}`} d={dStr} stroke="#10b981" strokeWidth="3" strokeDasharray="4 3" fill="none" opacity="0.75" />
+              );
+            })}
+
+            {campusFeatures.map((feat) => {
+              const pointsStr = feat.coordinates.map(pt => {
+                const p = project(pt[0], pt[1]);
+                return `${p.x},${p.y}`;
+              }).join(" ");
+
+              const isEmergencyBlock = activeEmergency && activeEmergency.buildingId === feat.id;
+              const isSelected = selectedBuilding && selectedBuilding.id === feat.id;
+              const isCategoryMatch = selectedCategory === "all" || feat.category === selectedCategory;
+
+              const predictedOcc = Math.min(feat.capacity, Math.round(feat.baseOccupancy * timeOffsetMultiplier));
+              const isParking = feat.category === "parking";
+              const pct = predictedOcc / feat.capacity;
+              const defaultColor = isParking ? '#f59e0b' : (pct > 0.85 ? '#f43f5e' : pct > 0.65 ? '#f59e0b' : '#00f5ff');
+              const color = isEmergencyBlock ? '#e11d48' : defaultColor;
+
+              const avgX = feat.coordinates.reduce((acc, pt) => acc + project(pt[0], pt[1]).x, 0) / feat.coordinates.length;
+              const avgY = feat.coordinates.reduce((acc, pt) => acc + project(pt[0], pt[1]).y, 0) / feat.coordinates.length;
+
+              const displayData = { ...feat, currentOccupancy: predictedOcc };
+
+              return (
+                <g key={feat.id} onClick={() => onSelectBuilding(displayData)} className={`cursor-pointer transition-all duration-300 ${isCategoryMatch ? 'opacity-100' : 'opacity-20'}`}>
+                  <polygon
+                    points={pointsStr}
+                    fill={color}
+                    fillOpacity={isEmergencyBlock ? "0.85" : (isSelected ? "0.65" : (isCategoryMatch ? "0.32" : "0.08"))}
+                    stroke={isEmergencyBlock ? "#ffffff" : (isSelected ? "#ffffff" : color)}
+                    strokeWidth={isEmergencyBlock ? "3.5" : (isSelected ? "2.5" : "1.5")}
+                  />
+                  {feat.hasCanopy && (
+                    <rect
+                      x={avgX - 16}
+                      y={avgY - 22}
+                      width="32"
+                      height="8"
+                      fill="none"
+                      stroke={isEmergencyBlock ? "#ffffff" : "#00f5ff"}
+                      strokeWidth="1.2"
+                      strokeDasharray="2 2"
+                      opacity="0.9"
+                    />
+                  )}
+                  {isCategoryMatch && (
+                    <g>
+                      <circle cx={avgX} cy={avgY} r="3.5" fill="#ffffff" opacity={isSelected ? "1" : "0.6"} />
+                      <text x={avgX} y={avgY - 12} fill="#f8fafc" fontSize="11" fontFamily="Plus Jakarta Sans" fontWeight="600" textAnchor="middle">
+                        {feat.subBlocks ? feat.subBlocks : feat.name}
+                      </text>
+                      <text x={avgX} y={avgY + 16} fill={color} fontSize="10" fontFamily="JetBrains Mono" fontWeight="700" textAnchor="middle">
+                        {isEmergencyBlock ? 'LOCKDOWN' : `${Math.round(pct * 100)}%`}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          <div className="absolute top-4 left-4 pointer-events-none flex flex-col gap-1 z-10">
+            <Badge variant="cyan">2D PREDICTIVE PLAN</Badge>
+            <span className="text-[11px] font-mono text-slate-400">Reflecting selected predictive time offset</span>
+          </div>
+        </div>
+      );
+    }
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      // Authentication State
+      const [currentUser, setCurrentUser] = useState(null);
+      const [loginInputUid, setLoginInputUid] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      // Global Emergency State
+      const [activeEmergency, setActiveEmergency] = useState(null);
+      const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+      const [emergencyForm, setEmergencyForm] = useState({
+        type: 'Fire Outbreak',
+        buildingId: campusFeatures[1].id,
+        customNotes: ''
+      });
+      const [showUserEmergencyPopup, setShowUserEmergencyPopup] = useState(false);
+
+      const [activeView, setActiveView] = useState('dashboard');
+      const [dimensionMode, setDimensionMode] = useState('3D');
+      const [selectedCategory, setSelectedCategory] = useState('all');
+      const [selectedTimeOffset, setSelectedTimeOffset] = useState('now');
+      const [selectedBuilding, setSelectedBuilding] = useState({ ...campusFeatures[0], currentOccupancy: campusFeatures[0].baseOccupancy });
+      const [rooms] = useState(initialRooms);
+      const [parkingZones] = useState(initialParking);
+      const [events, setEvents] = useState(initialEvents);
+      const [issues, setIssues] = useState(initialIssues);
+      const [aiForecasts] = useState(initialAIForecasts);
+      const [sensorAnomalies] = useState(initialSensorAnomalies);
+      const [secondsSinceUpdate, setSecondsSinceUpdate] = useState(0);
+      const [currentTime, setCurrentTime] = useState('');
+
+      // New Event Form State for Admins
+      const [showNewEventModal, setShowNewEventModal] = useState(false);
+      const [newEventForm, setNewEventForm] = useState({
+        title: '',
+        location: 'CSE Mega-Block (Courtyard)',
+        time: '04:00 PM - 07:00 PM',
+        expectedCrowd: 650
+      });
+
+      // Notification Pop-up Toast Engine State
+      const [notifications, setNotifications] = useState([]);
+
+      const pushNotification = (title, message, type = 'info', badge = 'ALERT', targetView = null) => {
+        const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        setNotifications(prev => [{ id, title, message, type, badge, targetView }, ...prev]);
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(t => t.id !== id));
+        }, 8500);
+      };
+
+      useEffect(() => {
+        if (!currentUser) return;
+
+        const timer1 = setTimeout(() => {
+          pushNotification(
+            'Sensor Surge Anomaly Detected',
+            'Ultrasonic Cluster #UH-02 registered an abrupt 5.8x crowd surge in the Uni Health Ground Trauma Corridor.',
+            'anomaly',
+            'ANOMALY DETECTED',
+            'forecast'
+          );
+        }, 1400);
+
+        const timer2 = setTimeout(() => {
+          pushNotification(
+            'AI Predictive Capacity Warning',
+            'Central Library projected to hit 96% saturated load within 60 mins. Dynamic redirection active.',
+            'ai-forecast',
+            'AI CROWD PREDICTION',
+            'forecast'
+          );
+        }, 4200);
+
+        const timer3 = setTimeout(() => {
+          pushNotification(
+            'Campus Event In Progress: National Hackathon 2026',
+            'Gate turnstiles clocked 1,024 checked-in at CSE Mega-Block Courtyard.',
+            'event',
+            'EVENT COMMENCED',
+            'events'
+          );
+        }, 7000);
+
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+          clearTimeout(timer3);
+        };
+      }, [currentUser]);
+
+      // Find Classroom States
+      const academicBuildings = campusFeatures.filter(f => f.category === 'academics');
+      const [finderBuildingId, setFinderBuildingId] = useState(academicBuildings[0].id);
+      const [finderTimeSlot, setFinderTimeSlot] = useState(timeSlots[0].id);
+      const [finderFloor, setFinderFloor] = useState('all');
+
+      // Rooms & Labs Filter
+      const [roomFilterBuilding, setRoomFilterBuilding] = useState('all');
+
+      // Report Issue Form State
+      const [newIssue, setNewIssue] = useState({
+        title: '',
+        buildingId: campusFeatures[0].id,
+        floor: '1',
+        roomNumber: '',
+        priority: 'NORMAL',
+        category: 'HVAC & Climate',
+        description: ''
+      });
+      const [showSubmitSuccess, setShowSubmitSuccess] = useState(false);
+
+      useEffect(() => {
+        const update = () => setCurrentTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+        update();
+        const t = setInterval(update, 1000);
+        return () => clearInterval(t);
+      }, []);
+
+      useEffect(() => {
+        const t = setInterval(() => setSecondsSinceUpdate(p => p + 1), 1000);
+        return () => clearInterval(t);
+      }, []);
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const rawId = loginInputUid.trim();
+        setLoginError('');
+
+        if (/^a/i.test(rawId)) {
+          setCurrentUser({
+            uid: rawId.toLowerCase(),
+            role: 'admin',
+            name: `Administrator (${rawId.toUpperCase()})`
+          });
+          setActiveView('dashboard');
+        } else if (/^\d{6}$/.test(rawId)) {
+          setCurrentUser({
+            uid: rawId,
+            role: 'student',
+            name: `Student (${rawId})`
+          });
+          setActiveView('dashboard');
+        } else {
+          setLoginError('Invalid UID format: Students must be 6 digits (e.g., 123456). Admins must start with "a" (e.g., a80421).');
+        }
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        setLoginInputUid('');
+        setLoginError('');
+        setActiveView('dashboard');
+        setNotifications([]);
+      };
+
+      const handleStartEvent = (evtId) => {
+        setEvents(prev => prev.map(evt => {
+          if (evt.id === evtId) {
+            const updated = {
+              ...evt,
+              status: 'IN PROGRESS',
+              currentAttendance: Math.round(evt.expectedCrowd * 0.72)
+            };
+            pushNotification(
+              `Event Started: ${updated.title}`,
+              `Venue: ${updated.location} • Turnstile active with ${updated.currentAttendance} attendees present.`,
+              'event',
+              'EVENT STARTED',
+              'events'
+            );
+            return updated;
+          }
+          return evt;
+        }));
+      };
+
+      const handleCreateNewEvent = (e) => {
+        e.preventDefault();
+        if (!newEventForm.title.trim()) return;
+
+        const newEvtObj = {
+          id: `evt-${Date.now()}`,
+          title: newEventForm.title.trim(),
+          location: newEventForm.location,
+          time: newEventForm.time,
+          expectedCrowd: parseInt(newEventForm.expectedCrowd) || 500,
+          currentAttendance: 0,
+          status: 'SCHEDULED'
+        };
+
+        setEvents(prev => [newEvtObj, ...prev]);
+        setShowNewEventModal(false);
+
+        pushNotification(
+          `New Event Declared: ${newEvtObj.title}`,
+          `Location: ${newEvtObj.location} • Schedule: ${newEvtObj.time} (Cap: ${newEvtObj.expectedCrowd})`,
+          'event',
+          'EVENT DECLARED',
+          'events'
+        );
+
+        setNewEventForm({
+          title: '',
+          location: 'CSE Mega-Block (Courtyard)',
+          time: '04:00 PM - 07:00 PM',
+          expectedCrowd: 650
+        });
+      };
+
+      const getEscapeProcedures = (type, buildingName) => {
+        switch (type) {
+          case 'Fire Outbreak':
+            return [
+              `DO NOT use interior elevators in ${buildingName}. Use marked exterior fire stairwells immediately.`,
+              'Keep low below thermal smoke layer; cover nose and mouth with damp cloth.',
+              'Proceed immediately to the Open Ground Assembly Area opposite North Gateway Boulevard.',
+              'Security team has activated automated dry-chemical suppression and smoke exhausters.'
+            ];
+          case 'Structural Hazard':
+            return [
+              `Immediate orderly evacuation of ${buildingName}. Avoid interior atrium balconies and perimeter glass facades.`,
+              'Clear 50-meter perimeter radius around the building structure.',
+              'Follow illuminated green ground emergency exit waypoints.',
+              'Structural survey teams deployed; keep all approach roads open for emergency response.'
+            ];
+          case 'Security Lockdown':
+            return [
+              `SHELTER IN PLACE: All personnel inside ${buildingName} must lock doors, turn off interior lights, and remain silent.`,
+              'Do not approach exterior windows. Silence all mobile communication devices.',
+              'Automated magnetic-lock seals engaged on all corridor access gates.',
+              'Wait for verified all-clear confirmation code broadcasted by Campus Security Control.'
+            ];
+          case 'Chemical / Gas Leak':
+            return [
+              `Evacuate ${buildingName} moving upwind towards the Open Sports Ground.`,
+              'Avoid all basement levels and low-lying storm drain conduits.',
+              'Cover respiratory tracts immediately; do not trigger any electrical switches.',
+              'Bio-safety and hazmat teams currently sealing localized HVAC intake valves.'
+            ];
+          default:
+            return [
+              `Evacuate ${buildingName} via closest designated fire escape route.`,
+              'Assemble at designated campus muster stations.',
+              'Listen for live instructions broadcasted over the public PA audio relays.'
+            ];
+        }
+      };
+
+      const handleTriggerEmergency = (e) => {
+        e.preventDefault();
+        const targetB = campusFeatures.find(b => b.id === emergencyForm.buildingId) || campusFeatures[0];
+        const procedures = getEscapeProcedures(emergencyForm.type, targetB.name);
+
+        const newEmergencyObj = {
+          id: `emg-${Date.now()}`,
+          type: emergencyForm.type,
+          buildingId: targetB.id,
+          buildingName: targetB.name,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          notes: emergencyForm.customNotes.trim() || 'Immediate action mandated by University Emergency Operations Center.',
+          procedures: procedures
+        };
+
+        setActiveEmergency(newEmergencyObj);
+        setShowEmergencyModal(false);
+        setShowUserEmergencyPopup(true);
+
+        const emergencyTicket = {
+          id: `iss-emg-${Date.now()}`,
+          title: `EMERGENCY ALERT: ${emergencyForm.type.toUpperCase()} IN ${targetB.name.toUpperCase()}`,
+          location: `${targetB.name} • ENTIRE COMPLEX LOCKDOWN`,
+          priority: 'CRITICAL',
+          category: 'Safety & Hazard',
+          status: 'IN PROGRESS',
+          description: `Active emergency lockdown triggered by Administrator. Auto-suggested escape procedures in effect. Building access disabled across all levels.`,
+          reportedBy: `ADMIN SECURITY DISPATCH (${currentUser?.uid || 'HQ'})`
+        };
+
+        setIssues(prev => [emergencyTicket, ...prev]);
+
+        pushNotification(
+          `LOCKDOWN ORDER: ${targetB.name}`,
+          `Code-Red Emergency triggered by dispatch. Follow designated evacuation channels immediately.`,
+          'anomaly',
+          'EMERGENCY LOCKDOWN'
+        );
+      };
+
+      const handleClearEmergency = () => {
+        if (currentUser?.role !== 'admin') return;
+        setActiveEmergency(null);
+        setShowUserEmergencyPopup(false);
+        pushNotification(
+          'Campus Lockdown Lifted',
+          'Administrator restored nominal operating protocols. All security corridors normalized.',
+          'event',
+          'STATUS RESTORED'
+        );
+      };
+
+      const activeTimeObj = predictiveTimeOffsets.find(t => t.id === selectedTimeOffset) || predictiveTimeOffsets[0];
+      const timeMultiplier = activeTimeObj.multiplier;
+
+      const handleCategoryChange = (catId) => {
+        setSelectedCategory(catId);
+        if (catId === 'all') return;
+        const match = campusFeatures.find(f => f.category === catId);
+        if (match) {
+          const predicted = Math.min(match.capacity, Math.round(match.baseOccupancy * timeMultiplier));
+          setSelectedBuilding({ ...match, currentOccupancy: predicted });
+        }
+      };
+
+      const handleTimeChange = (timeId) => {
+        setSelectedTimeOffset(timeId);
+        const tObj = predictiveTimeOffsets.find(t => t.id === timeId);
+        if (selectedBuilding) {
+          const baseFeat = campusFeatures.find(f => f.id === selectedBuilding.id) || selectedBuilding;
+          const predicted = Math.min(baseFeat.capacity, Math.round(baseFeat.baseOccupancy * tObj.multiplier));
+          setSelectedBuilding({ ...baseFeat, currentOccupancy: predicted });
+          
+          if (predicted / baseFeat.capacity >= 0.85) {
+            pushNotification(
+              `Projected Heavy Load at ${baseFeat.name}`,
+              `Simulation predicts ${Math.round((predicted / baseFeat.capacity)*100)}% load for ${tObj.label}.`,
+              'ai-forecast',
+              'SURGE PROJECTED',
+              'dashboard'
+            );
+          }
+        }
+      };
+
+      const handleUpdateIssue = (id, newStatus) => {
+        if (currentUser?.role !== 'admin') return;
+        setIssues(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
+      };
+
+      const handleSubmitIssue = (e) => {
+        e.preventDefault();
+        if (!newIssue.title.trim() || !newIssue.description.trim()) return;
+
+        const bObj = campusFeatures.find(b => b.id === newIssue.buildingId) || campusFeatures[0];
+        const locationStr = `${bObj.name} • Floor ${newIssue.floor}${newIssue.roomNumber ? ` (Room ${newIssue.roomNumber})` : ''}`;
+
+        const createdIssue = {
+          id: `iss-${Date.now()}`,
+          title: newIssue.title.trim(),
+          location: locationStr,
+          priority: newIssue.priority,
+          category: newIssue.category,
+          status: 'IN PROGRESS',
+          description: newIssue.description.trim(),
+          reportedBy: currentUser ? `${currentUser.role.toUpperCase()} #${currentUser.uid}` : 'Anonymous'
+        };
+
+        setIssues(prev => [createdIssue, ...prev]);
+        setShowSubmitSuccess(true);
+        setTimeout(() => setShowSubmitSuccess(false), 4000);
+
+        pushNotification(
+          `Incident Ticket Dispatched`,
+          `[${createdIssue.priority}] ${createdIssue.title} logged for ${locationStr}.`,
+          'info',
+          'MAINTENANCE DISPATCH',
+          'issues'
+        );
+
+        setNewIssue({
+          title: '',
+          buildingId: campusFeatures[0].id,
+          floor: '1',
+          roomNumber: '',
+          priority: 'NORMAL',
+          category: 'HVAC & Climate',
+          description: ''
+        });
+      };
+
+      const filteredBuildings = selectedCategory === 'all' 
+        ? campusFeatures 
+        : campusFeatures.filter(f => f.category === selectedCategory);
+
+      const totalOccupancy = filteredBuildings.reduce((a, b) => a + Math.min(b.capacity, Math.round(b.baseOccupancy * timeMultiplier)), 0);
+      const totalCapacity = filteredBuildings.reduce((a, b) => a + b.capacity, 0);
+      const campusOccPct = totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0;
+      const freeParking = parkingZones.reduce((a, p) => a + (p.totalSpaces - p.occupiedSpaces), 0);
+
+      const evaluatedRooms = rooms.map(r => {
+        if (activeEmergency && r.buildingId === activeEmergency.buildingId) {
+          return {
+            ...r,
+            currentStatus: 'UNAVAILABLE',
+            nextAvailableTime: 'EMERGENCY LOCKDOWN',
+            baseOccupancyRate: 0.0
+          };
+        }
+        return r;
+      });
+
+      const selectedSlotObj = timeSlots.find(s => s.id === finderTimeSlot) || timeSlots[0];
+      const targetBuildingObj = campusFeatures.find(b => b.id === finderBuildingId) || academicBuildings[0];
+
+      const buildingRooms = evaluatedRooms.filter(r => r.buildingId === finderBuildingId);
+      const availableFloors = Array.from(new Set(buildingRooms.map(r => r.floor))).sort((a, b) => a - b);
+
+      const filteredRoomsForFinder = buildingRooms.filter(r => {
+        if (finderFloor !== 'all' && r.floor !== parseInt(finderFloor)) return false;
+        return true;
+      });
+
+      const displayRoomsList = roomFilterBuilding === 'all' 
+        ? evaluatedRooms 
+        : evaluatedRooms.filter(r => r.buildingId === roomFilterBuilding);
+
+      const selectedBuildingRooms = selectedBuilding 
+        ? evaluatedRooms.filter(r => r.buildingId === selectedBuilding.id)
+        : [];
+
+      // --- LOGIN SCREEN ---
+      if (!currentUser) {
+        return (
+          <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+            <div className="w-full max-w-md glass-hull p-8 rounded-3xl border border-white/[0.12] relative z-10 space-y-6 shadow-2xl">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 font-mono text-[10px] tracking-widest uppercase">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#00f5ff] animate-pulse"></span>
+                  LPU Access Portal
+                </div>
+                <h1 className="text-2xl font-bold uppercase tracking-tight text-white font-mono hud-glow">
+                  CAMPUS DIGITAL TWIN
+                </h1>
+                <p className="text-xs text-slate-400 font-sans">
+                  Sign in with your campus UID to unlock your customized persona view.
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4 font-mono text-xs">
+                <div className="space-y-1.5">
+                  <label className="block text-slate-300 font-semibold uppercase text-[11px] tracking-wider">
+                    Campus UID / Registration No.
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={loginInputUid}
+                    onChange={(e) => setLoginInputUid(e.target.value)}
+                    placeholder="Student: 123456 | Admin: a90241"
+                    className="w-full bg-slate-950/80 border border-white/[0.14] rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00f5ff] transition-all text-sm tracking-wide"
+                  />
+                  <span className="text-[10px] text-slate-500 block leading-tight">
+                    • <strong>Students:</strong> 6-digit numeric ID<br />
+                    • <strong>Admins:</strong> Starts with 'a' (e.g., a80421)
+                  </span>
+                </div>
+
+                {loginError && (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[11px] font-sans">
+                    ⚠️ {loginError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-bold tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(0,245,255,0.35)]"
+                >
+                  Enter Digital Twin &rarr;
+                </button>
+              </form>
+
+              <div className="pt-4 border-t border-white/[0.08] flex justify-between text-[11px] font-mono text-slate-400">
+                <button 
+                  type="button" 
+                  onClick={() => { setLoginInputUid('119024'); setLoginError(''); }}
+                  className="hover:text-cyan-400 transition-colors"
+                >
+                  Quick Demo: Student (119024)
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => { setLoginInputUid('a80912'); setLoginError(''); }}
+                  className="hover:text-amber-400 transition-colors"
+                >
+                  Quick Demo: Admin (a80912)
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const navigationItems = currentUser.role === 'admin'
+        ? [
+            { id: 'dashboard', label: 'Dashboard', icon: Icons.LayoutDashboard },
+            { id: 'find-room', label: 'Find Classroom', icon: Icons.Search, featured: true },
+            { id: 'command-center', label: 'Command Center', icon: Icons.Terminal },
+            { id: 'map', label: 'Campus Map', icon: Icons.Map },
+            { id: 'rooms', label: 'Rooms & Labs', icon: Icons.DoorOpen },
+            { id: 'parking', label: 'Smart Parking', icon: Icons.Car },
+            { id: 'crowd', label: 'Crowd Analytics', icon: Icons.BarChart3 },
+            { id: 'events', label: 'Events', icon: Icons.Calendar },
+            { id: 'issues', label: 'Reported Issues', icon: Icons.AlertCircle, badge: issues.filter(i=>i.status!=='RESOLVED').length },
+            { id: 'forecast', label: 'AI Forecast & Anomalies', icon: Icons.BrainCircuit, bonus: true },
+            { id: 'sources', label: 'Data Sources', icon: Icons.Radio }
+          ]
+        : [
+            { id: 'dashboard', label: 'Dashboard', icon: Icons.LayoutDashboard },
+            { id: 'find-room', label: 'Find Classroom', icon: Icons.Search, featured: true },
+            { id: 'map', label: 'Campus Map', icon: Icons.Map },
+            { id: 'rooms', label: 'Rooms & Labs', icon: Icons.DoorOpen },
+            { id: 'parking', label: 'Smart Parking', icon: Icons.Car },
+            { id: 'crowd', label: 'Crowd Analytics', icon: Icons.BarChart3 },
+            { id: 'events', label: 'Campus Events', icon: Icons.Calendar },
+            { id: 'issues', label: 'Reported Issues', icon: Icons.AlertCircle, badge: issues.filter(i=>i.status!=='RESOLVED').length },
+            { id: 'forecast', label: 'AI Forecast & Anomalies', icon: Icons.BrainCircuit, bonus: true },
+            { id: 'sources', label: 'Data Sources', icon: Icons.Radio }
+          ];
+
+      return (
+        <div className="flex min-h-screen bg-[#030712] text-slate-100 font-sans relative">
+          
+          {/* FLOATING ACTIONABLE POP-UP TOAST STACK */}
+          <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 w-80 sm:w-96 pointer-events-none">
+            {notifications.map(toast => {
+              const styleMap = {
+                anomaly: 'border-rose-500/80 bg-[#160408]/95 text-rose-200 shadow-[0_0_24px_rgba(244,63,94,0.35)]',
+                'ai-forecast': 'border-purple-500/80 bg-[#13051f]/95 text-purple-200 shadow-[0_0_24px_rgba(168,85,247,0.3)]',
+                event: 'border-cyan-500/80 bg-[#041421]/95 text-cyan-200 shadow-[0_0_24px_rgba(0,245,255,0.3)]',
+                info: 'border-amber-500/80 bg-[#190f03]/95 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.25)]'
+              }[toast.type] || 'border-cyan-500/80 bg-slate-950/95 text-slate-200';
+
+              const badgeVariant = {
+                anomaly: 'red',
+                'ai-forecast': 'purple',
+                event: 'cyan',
+                info: 'yellow'
+              }[toast.type] || 'cyan';
+
+              return (
+                <div
+                  key={toast.id}
+                  className={`pointer-events-auto p-4 rounded-2xl border backdrop-blur-xl space-y-2.5 toast-animate ${styleMap}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <Badge variant={badgeVariant}>{toast.badge}</Badge>
+                    <button
+                      onClick={() => setNotifications(prev => prev.filter(t => t.id !== toast.id))}
+                      className="text-xs text-slate-400 hover:text-white font-mono px-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white leading-snug font-mono">{toast.title}</h4>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed font-sans">{toast.message}</p>
+                  </div>
+                  {toast.targetView && (
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setActiveView(toast.targetView);
+                          setNotifications(prev => prev.filter(t => t.id !== toast.id));
+                        }}
+                        className="text-[11px] font-mono font-bold underline text-white hover:text-[#00f5ff] transition-colors"
+                      >
+                        Inspect in View &rarr;
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* EMERGENCY ALERT POPUP MODAL */}
+          {activeEmergency && showUserEmergencyPopup && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+              <div className="w-full max-w-2xl bg-[#090205] border-2 border-rose-500 rounded-3xl p-6 md:p-8 shadow-[0_0_50px_rgba(244,63,94,0.65)] space-y-6 relative overflow-hidden">
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-rose-600/30 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div className="flex items-center gap-3.5 border-b border-rose-500/30 pb-4">
+                  <div className="p-3 bg-rose-500/20 border border-rose-500/50 rounded-2xl text-rose-400 siren-active">
+                    <Icons.ShieldAlert className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-mono font-bold tracking-widest text-rose-400 uppercase block">
+                      CAMPUS-WIDE PRIORITY BROADCAST • {activeEmergency.timestamp}
+                    </span>
+                    <h2 className="text-xl md:text-2xl font-black font-sans uppercase text-white tracking-wide">
+                      {activeEmergency.type}: {activeEmergency.buildingName}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 font-mono text-xs space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-rose-300 font-bold uppercase">Lockdown Area:</span>
+                    <span className="text-white font-bold">{activeEmergency.buildingName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-rose-300 font-bold uppercase">Impact:</span>
+                    <span className="text-rose-400 font-bold">ALL ROOMS LOCKED &amp; MARKED UNAVAILABLE</span>
+                  </div>
+                  <p className="text-slate-300 pt-2 font-sans text-xs border-t border-rose-500/20">
+                    <strong>Authority Notes:</strong> {activeEmergency.notes}
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 font-mono text-xs">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold uppercase tracking-wider text-[11px]">
+                    <span>🚨</span>
+                    <span>AUTO-GENERATED ESCAPE &amp; SECURITY PROTOCOLS:</span>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {activeEmergency.procedures.map((step, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-slate-950/80 border border-white/[0.08] flex items-start gap-3 text-slate-200">
+                        <span className="h-5 w-5 shrink-0 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center font-bold text-[11px]">
+                          {idx + 1}
+                        </span>
+                        <p className="leading-relaxed font-sans text-xs">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-3 pt-2 justify-end">
+                  <button
+                    onClick={() => setShowUserEmergencyPopup(false)}
+                    className="px-6 py-2.5 rounded-xl bg-white/[0.1] hover:bg-white/[0.18] text-white font-mono text-xs font-bold transition-all"
+                  >
+                    Acknowledge Notice
+                  </button>
+                  {currentUser.role === 'admin' && (
+                    <button
+                      onClick={handleClearEmergency}
+                      className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono text-xs font-bold transition-all shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                    >
+                      Lift Lockdown &amp; Restore Campus Status
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN NEW EVENT CREATION MODAL */}
+          {showNewEventModal && currentUser.role === 'admin' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+              <div className="w-full max-w-md glass-hull p-6 rounded-3xl border border-cyan-500/40 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400"><Icons.Calendar className="h-4 w-4" /></span>
+                    <h3 className="text-sm font-bold uppercase text-white font-mono">Publish Campus Event</h3>
+                  </div>
+                  <button onClick={() => setShowNewEventModal(false)} className="text-slate-400 hover:text-white font-mono text-sm">✕</button>
+                </div>
+                <form onSubmit={handleCreateNewEvent} className="space-y-3 font-mono text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1">Event Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newEventForm.title}
+                      onChange={(e) => setNewEventForm({ ...newEventForm, title: e.target.value })}
+                      placeholder="e.g., Annual Tech Conclave"
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1">Campus Venue *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newEventForm.location}
+                      onChange={(e) => setNewEventForm({ ...newEventForm, location: e.target.value })}
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1">Timing Window *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newEventForm.time}
+                      onChange={(e) => setNewEventForm({ ...newEventForm, time: e.target.value })}
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-bold uppercase text-[11px] mb-1">Expected Attendees *</label>
+                    <input
+                      type="number"
+                      required
+                      value={newEventForm.expectedCrowd}
+                      onChange={(e) => setNewEventForm({ ...newEventForm, expectedCrowd: e.target.value })}
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowNewEventModal(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-900 text-slate-400 text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 text-slate-950 font-bold text-xs shadow-[0_0_16px_rgba(0,245,255,0.4)]"
+                    >
+                      Publish &amp; Broadcast
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN EMERGENCY DECLARATION MODAL */}
+          {showEmergencyModal && currentUser.role === 'admin' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+              <div className="w-full max-w-lg glass-hull p-6 md:p-8 rounded-3xl border border-rose-500/40 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-rose-500/20 text-rose-400">
+                      <Icons.Siren className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-base font-bold uppercase text-white font-mono">DECLARE CAMPUS EMERGENCY</h3>
+                      <span className="text-[10px] text-slate-400 font-mono">Locks down block and broadcasts evacuation</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowEmergencyModal(false)} className="text-slate-400 hover:text-white font-mono text-sm">✕</button>
+                </div>
+
+                <form onSubmit={handleTriggerEmergency} className="space-y-4 font-mono text-xs">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold uppercase text-[11px] block">1. Emergency Category *</label>
+                    <select
+                      value={emergencyForm.type}
+                      onChange={(e) => setEmergencyForm({ ...emergencyForm, type: e.target.value })}
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-rose-500"
+                    >
+                      <option value="Fire Outbreak">Fire Outbreak</option>
+                      <option value="Security Lockdown">Security Threat / Lockdown</option>
+                      <option value="Structural Hazard">Structural Hazard</option>
+                      <option value="Chemical / Gas Leak">Chemical / Hazardous Material</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold uppercase text-[11px] block">2. Target Block Affected *</label>
+                    <select
+                      value={emergencyForm.buildingId}
+                      onChange={(e) => setEmergencyForm({ ...emergencyForm, buildingId: e.target.value })}
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-rose-500"
+                    >
+                      {campusFeatures.map(b => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-rose-400 block">⚠️ All classrooms in this block will instantly be marked UNAVAILABLE.</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold uppercase text-[11px] block">3. Operational Dispatch Directives</label>
+                    <textarea
+                      rows="3"
+                      value={emergencyForm.customNotes}
+                      onChange={(e) => setEmergencyForm({ ...emergencyForm, customNotes: e.target.value })}
+                      placeholder="e.g., Immediate code-red evacuation required. First responders en route."
+                      className="w-full bg-slate-950/90 border border-white/[0.14] rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500 resize-none font-sans text-xs"
+                    />
+                  </div>
+
+                  <div className="pt-3 flex justify-end gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmergencyModal(false)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(225,29,72,0.6)] flex items-center gap-2"
+                    >
+                      <Icons.Siren className="h-4 w-4" />
+                      <span>Broadcast Emergency Lockdown</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* FULLY SCROLLABLE SIDEBAR NAVIGATION */}
+          <aside className="w-68 border-r border-white/[0.08] bg-[#050b18]/90 backdrop-blur-2xl flex flex-col shrink-0 hidden md:flex z-10 sidebar-scroll-container">
+            <div className="p-6 border-b border-white/[0.08] shrink-0">
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="text-[#00f5ff] font-bold text-base tracking-wider font-sans hud-glow uppercase">
+                  CAMPUS TWIN
+                </span>
+                <span className="h-2 w-2 rounded-full bg-[#10b981] status-dot-pulse inline-block"></span>
+              </div>
+              <div className="text-white text-xs font-medium tracking-tight text-slate-300">
+                Lovely Professional University
+              </div>
+            </div>
+
+            <nav className="p-3.5 space-y-1">
+              {navigationItems.map(item => {
+                const IconComp = item.icon;
+                const active = activeView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveView(item.id)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all duration-200 ${
+                      active
+                        ? 'bg-gradient-to-r from-cyan-500/15 via-cyan-500/10 to-transparent text-[#00f5ff] font-semibold border-l-2 border-[#00f5ff]'
+                        : 'text-slate-400 hover:bg-white/[0.03] hover:text-slate-200 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <IconComp className={`h-4 w-4 ${active ? 'text-[#00f5ff]' : 'text-slate-500'}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.featured && (
+                      <span className="text-[9px] bg-cyan-500/20 border border-cyan-400/40 text-[#00f5ff] px-1.5 py-0.5 rounded font-mono font-bold">
+                        NEW
+                      </span>
+                    )}
+                    {item.bonus && (
+                      <span className="text-[9px] bg-purple-500/15 border border-purple-500/30 text-purple-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                        AI
+                      </span>
+                    )}
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="text-[10px] font-mono bg-rose-500/20 border border-rose-500/40 text-rose-300 px-1.5 py-0.5 rounded-full font-bold">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* BOTTOM BAR ATTACHED INSIDE THE SCROLLABLE STACK */}
+            <div className="mt-auto p-3 border-t border-white/[0.08] flex items-center justify-between gap-2 bg-[#040816]/70 shrink-0">
+              <div className="flex-1 p-2 rounded-xl border border-white/[0.06] bg-[#070d1e] text-[11px] font-mono">
+                <span className="text-[9px] uppercase text-slate-500 block">ACCOUNT</span>
+                <span className={`font-bold uppercase truncate block ${currentUser.role === 'admin' ? 'text-amber-400' : 'text-cyan-400'}`}>
+                  {currentUser.role}: {currentUser.uid}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setActiveView('report-issue')}
+                title="Report Campus Facility Issue"
+                className={`relative group h-10 w-10 shrink-0 rounded-xl flex items-center justify-center font-mono font-black text-base transition-all duration-300 border ${
+                  activeView === 'report-issue'
+                    ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.85)] scale-105'
+                    : 'bg-amber-500/20 border-amber-500/50 text-amber-300 hover:bg-amber-400 hover:text-slate-950 amber-alert-pulse'
+                }`}
+              >
+                <span>!</span>
+                <span className="absolute left-12 ml-2 px-2.5 py-1 bg-slate-900 border border-amber-500/40 text-amber-300 text-[10px] rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-xl font-mono">
+                  Report Facility Issue (!)
+                </span>
+              </button>
+
+              {currentUser.role === 'admin' && (
+                <button
+                  onClick={() => setShowEmergencyModal(true)}
+                  title="Trigger Emergency Lockdown"
+                  className={`relative group h-10 w-10 shrink-0 rounded-xl flex items-center justify-center font-mono transition-all duration-300 border ${
+                    activeEmergency
+                      ? 'bg-rose-600 text-white border-white shadow-[0_0_24px_rgba(225,29,72,0.9)] siren-active'
+                      : 'bg-rose-500/20 border-rose-500/50 text-rose-400 hover:bg-rose-600 hover:text-white'
+                  }`}
+                >
+                  <Icons.Siren className="h-5 w-5" />
+                  <span className="absolute left-12 ml-2 px-2.5 py-1 bg-slate-900 border border-rose-500/40 text-rose-300 text-[10px] rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-xl font-mono">
+                    Emergency Broadcast
+                  </span>
+                </button>
+              )}
+            </div>
+          </aside>
+
+          {/* MAIN STAGE */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {activeEmergency && (
+              <div className="emergency-broadcast-strip border-b-2 border-rose-500 px-6 py-2.5 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                  <span className="font-bold text-white uppercase tracking-wider">
+                    ACTIVE LOCKDOWN: {activeEmergency.type} IN {activeEmergency.buildingName.toUpperCase()}
+                  </span>
+                  <span className="text-rose-200 hidden md:inline">• All classrooms locked</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowUserEmergencyPopup(true)}
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold"
+                  >
+                    View Escape Plan
+                  </button>
+                  {currentUser.role === 'admin' && (
+                    <button
+                      onClick={handleClearEmergency}
+                      className="px-3 py-1 rounded-lg bg-white/[0.1] hover:bg-white/[0.2] text-rose-200"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <header className="h-16 border-b border-white/[0.08] bg-[#050b18]/70 backdrop-blur-xl px-6 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/[0.08] bg-slate-900/80 text-xs font-mono">
+                  <span className="h-2 w-2 rounded-full bg-[#10b981] animate-pulse"></span>
+                  <span className="font-semibold text-slate-200">TELEMETRY STREAM</span>
+                  <span className="text-slate-500 text-[11px]">({secondsSinceUpdate}s ago)</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 font-mono text-xs">
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => setShowNewEventModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-[#00f5ff] hover:bg-cyan-500/25 transition-all text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Icons.Calendar className="h-3.5 w-3.5" />
+                    <span>Declare Event</span>
+                  </button>
+                )}
+
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-white/[0.08] bg-slate-900/80 text-slate-300">
+                  <Icons.Clock className="h-3.5 w-3.5 text-[#00f5ff]" />
+                  <span>{currentTime}</span>
+                </div>
+
+                <div className="flex items-center gap-2 pl-2">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border ${
+                    currentUser.role === 'admin'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      : 'bg-cyan-500/10 border-cyan-400/30 text-cyan-300'
+                  }`}>
+                    {currentUser.role === 'admin' ? <Icons.ShieldCheck className="h-3.5 w-3.5 text-amber-400" /> : <Icons.User className="h-3.5 w-3.5 text-cyan-300" />}
+                    <span>{currentUser.role.toUpperCase()}</span>
+                  </span>
+
+                  <button
+                    onClick={handleLogout}
+                    title="Sign Out"
+                    className="p-1.5 rounded-xl border border-white/[0.08] bg-slate-900/80 text-slate-400 hover:text-rose-400 hover:border-rose-500/40 transition-all"
+                  >
+                    <Icons.LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <main className="flex-1 overflow-hidden p-6">
+              <div className="max-w-7xl mx-auto h-full">
+
+                {/* REPORT ISSUE VIEW */}
+                {activeView === 'report-issue' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-amber-400">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="yellow">FACILITY TRIAGE (!)</Badge>
+                          <Badge variant="cyan">INSTANT SYNC</Badge>
+                        </div>
+                        <h2 className="text-2xl font-bold uppercase text-white tracking-tight">REPORT FACILITY ISSUE</h2>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed font-mono">
+                          Submit campus facility malfunctions, equipment errors, or room hazards directly to the operational dispatch queue.
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => setActiveView('issues')}
+                        className="px-4 py-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/[0.12] text-xs font-mono text-slate-300 transition-all self-start md:self-auto"
+                      >
+                        View Active Issues ({issues.filter(i=>i.status!=='RESOLVED').length}) &rarr;
+                      </button>
+                    </div>
+
+                    {showSubmitSuccess && (
+                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between animate-fade-in">
+                        <div className="flex items-center gap-2.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                          <span>Ticket successfully dispatched! It is now tracked under <strong>Reported Issues</strong>.</span>
+                        </div>
+                        <button onClick={() => setActiveView('issues')} className="underline font-bold text-white">View Queue</button>
+                      </div>
+                    )}
+
+                    <div className="glass-hull p-6 rounded-2xl border border-white/[0.08]">
+                      <form onSubmit={handleSubmitIssue} className="space-y-5 font-mono text-xs">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                              1. Issue Summary / Title *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={newIssue.title}
+                              onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })}
+                              placeholder="e.g., Projector flicker, AC thermal failure, door lock jammed"
+                              className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00f5ff] transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                              2. Issue Category *
+                            </label>
+                            <select
+                              value={newIssue.category}
+                              onChange={(e) => setNewIssue({ ...newIssue, category: e.target.value })}
+                              className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                            >
+                              <option value="HVAC & Climate">HVAC & Climate Control</option>
+                              <option value="Electrical & Power">Electrical & Lighting</option>
+                              <option value="Audio / Visual & Displays">Audio / Visual & Projectors</option>
+                              <option value="Plumbing & Washrooms">Plumbing & Water Supply</option>
+                              <option value="Network & Wi-Fi Access">Network & Wi-Fi Hotspot</option>
+                              <option value="Furniture & Fixtures">Furniture & Doors / Windows</option>
+                              <option value="Safety & Hazard">Safety, Hazard & Fire</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                              3. Specific Building *
+                            </label>
+                            <select
+                              value={newIssue.buildingId}
+                              onChange={(e) => setNewIssue({ ...newIssue, buildingId: e.target.value })}
+                              className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                            >
+                              {campusFeatures.map(b => (
+                                <option key={b.id} value={b.id}>
+                                  {b.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                              4. Floor Level *
+                            </label>
+                            <select
+                              value={newIssue.floor}
+                              onChange={(e) => setNewIssue({ ...newIssue, floor: e.target.value })}
+                              className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                            >
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(f => (
+                                <option key={f} value={f}>Floor {f}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                              5. Room Number (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={newIssue.roomNumber}
+                              onChange={(e) => setNewIssue({ ...newIssue, roomNumber: e.target.value })}
+                              placeholder="e.g., 205, 505, Server Lab"
+                              className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00f5ff] transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                          <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                            6. Problem Severity Tier *
+                          </label>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <label className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              newIssue.priority === 'CRITICAL' 
+                                ? 'bg-rose-500/15 border-rose-500 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.25)]' 
+                                : 'bg-slate-950/60 border-white/[0.08] text-slate-400 hover:border-white/20'
+                            }`}>
+                              <input 
+                                type="radio" 
+                                name="priority" 
+                                value="CRITICAL" 
+                                checked={newIssue.priority === 'CRITICAL'} 
+                                onChange={(e) => setNewIssue({ ...newIssue, priority: e.target.value })}
+                                className="mt-0.5 accent-rose-500"
+                              />
+                              <div>
+                                <span className="font-bold text-sm block">CRITICAL</span>
+                                <span className="text-[11px] text-slate-400 font-sans">Immediate hazard or class shutdown</span>
+                              </div>
+                            </label>
+
+                            <label className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              newIssue.priority === 'NORMAL' 
+                                ? 'bg-amber-500/15 border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]' 
+                                : 'bg-slate-950/60 border-white/[0.08] text-slate-400 hover:border-white/20'
+                            }`}>
+                              <input 
+                                type="radio" 
+                                name="priority" 
+                                value="NORMAL" 
+                                checked={newIssue.priority === 'NORMAL'} 
+                                onChange={(e) => setNewIssue({ ...newIssue, priority: e.target.value })}
+                                className="mt-0.5 accent-amber-500"
+                              />
+                              <div>
+                                <span className="font-bold text-sm block">NORMAL</span>
+                                <span className="text-[11px] text-slate-400 font-sans">Needs standard maintenance intervention</span>
+                              </div>
+                            </label>
+
+                            <label className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                              newIssue.priority === 'LIGHT' 
+                                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)]' 
+                                : 'bg-slate-950/60 border-white/[0.08] text-slate-400 hover:border-white/20'
+                            }`}>
+                              <input 
+                                type="radio" 
+                                name="priority" 
+                                value="LIGHT" 
+                                checked={newIssue.priority === 'LIGHT'} 
+                                onChange={(e) => setNewIssue({ ...newIssue, priority: e.target.value })}
+                                className="mt-0.5 accent-emerald-500"
+                              />
+                              <div>
+                                <span className="font-bold text-sm block">LIGHT</span>
+                                <span className="text-[11px] text-slate-400 font-sans">Minor inconvenience or aesthetic issue</span>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                          <label className="block text-slate-300 font-semibold tracking-wider uppercase text-[11px]">
+                            7. Detailed Description of the Fault *
+                          </label>
+                          <textarea
+                            required
+                            rows="4"
+                            value={newIssue.description}
+                            onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
+                            placeholder="Provide any exact sensory readings, symptoms, affected desks, or observations..."
+                            className="w-full bg-slate-950/80 border border-white/[0.12] rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-[#00f5ff] transition-all resize-none"
+                          />
+                        </div>
+
+                        <div className="pt-3 flex justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setNewIssue({
+                              title: '',
+                              buildingId: campusFeatures[0].id,
+                              floor: '1',
+                              roomNumber: '',
+                              priority: 'NORMAL',
+                              category: 'HVAC & Climate',
+                              description: ''
+                            })}
+                            className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/[0.08] transition-all"
+                          >
+                            Reset Form
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-bold shadow-[0_0_20px_rgba(0,245,255,0.4)] transition-all"
+                          >
+                            Dispatch Incident Ticket &rarr;
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* FIND CLASSROOM VIEW */}
+                {activeView === 'find-room' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-[#00f5ff]">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="cyan">SPATIAL LOCATOR</Badge>
+                          <Badge variant="green">LIVE TELEMETRY &amp; PREDICTION</Badge>
+                          {activeEmergency && <Badge variant="red">ACTIVE SECTOR LOCKDOWN</Badge>}
+                        </div>
+                        <h2 className="text-2xl font-bold uppercase text-white tracking-tight">CLASSROOM DISCOVERY ENGINE</h2>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed font-mono">
+                          View real-time live sensor counts alongside projected headcounts across designated schedule time windows.
+                        </p>
+                      </div>
+                      <div className="text-xs font-mono px-3.5 py-2 rounded-xl bg-slate-950/80 border border-white/[0.1] text-[#00f5ff]">
+                        {filteredRoomsForFinder.length} Classes In Selected Filter
+                      </div>
+                    </div>
+
+                    <div className="glass-hull p-5 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono font-semibold uppercase text-slate-400 block tracking-wider">
+                          1. Academic Building:
+                        </label>
+                        <select
+                          value={finderBuildingId}
+                          onChange={(e) => {
+                            setFinderBuildingId(e.target.value);
+                            setFinderFloor('all');
+                          }}
+                          className="w-full bg-slate-900/90 border border-white/[0.12] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                        >
+                          {academicBuildings.map(b => (
+                            <option key={b.id} value={b.id} className="bg-slate-950 text-white">
+                              {b.name} ({b.subBlocks || `Block ${b.buildingNo}`}) {activeEmergency && activeEmergency.buildingId === b.id ? '🚨 [LOCKED DOWN]' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono font-semibold uppercase text-slate-400 block tracking-wider">
+                          2. Filter by Floor Level:
+                        </label>
+                        <select
+                          value={finderFloor}
+                          onChange={(e) => setFinderFloor(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/[0.12] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                        >
+                          <option value="all" className="bg-slate-950 text-white">All Floors (01 to 10 batches)</option>
+                          {availableFloors.map(f => (
+                            <option key={f} value={f} className="bg-slate-950 text-white">
+                              Floor {f} (Rooms {f}01 - {f}10)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-mono font-semibold uppercase text-slate-400 block tracking-wider">
+                          3. Simulation Time Window:
+                        </label>
+                        <select
+                          value={finderTimeSlot}
+                          onChange={(e) => setFinderTimeSlot(e.target.value)}
+                          className="w-full bg-slate-900/90 border border-white/[0.12] rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#00f5ff] transition-all cursor-pointer"
+                        >
+                          {timeSlots.map(t => (
+                            <option key={t.id} value={t.id} className="bg-slate-950 text-white">
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 px-1">
+                        <div className="text-xs font-mono text-slate-300">
+                          Showing classes for <span className="text-[#00f5ff] font-bold">{targetBuildingObj.name}</span> {finderFloor !== 'all' ? `• Floor ${finderFloor}` : ''}
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] font-mono">
+                          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400"></span> Low (&lt;50%)</span>
+                          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400"></span> Moderate (50-80%)</span>
+                          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500"></span> Crowded / Locked</span>
+                        </div>
+                      </div>
+
+                      <div className="glass-hull rounded-2xl p-4 overflow-hidden border border-white/[0.08]">
+                        <div className="max-h-[520px] overflow-y-auto pr-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {filteredRoomsForFinder.map(r => {
+                              const isLocked = r.currentStatus === 'UNAVAILABLE';
+                              const liveOccRate = isLocked ? 0 : Math.min(1.0, Math.max(0.05, r.baseOccupancyRate || 0.4));
+                              const livePercent = Math.round(liveOccRate * 100);
+                              const liveHeads = Math.round(r.capacity * liveOccRate);
+
+                              let liveColor = isLocked ? '#f43f5e' : '#10b981';
+                              let liveBorder = isLocked ? 'border-rose-500/60' : 'border-emerald-500/30';
+                              let liveBg = isLocked ? 'bg-rose-500/20' : 'bg-emerald-500/10';
+                              let liveText = isLocked ? 'text-rose-300 font-bold' : 'text-emerald-400';
+                              let liveLabel = isLocked ? 'LOCKED DOWN' : 'SPACIOUS';
+
+                              if (!isLocked) {
+                                if (livePercent > 80) {
+                                  liveColor = '#f43f5e';
+                                  liveBorder = 'border-rose-500/40';
+                                  liveBg = 'bg-rose-500/10';
+                                  liveText = 'text-rose-400';
+                                  liveLabel = 'VERY CROWDED';
+                                } else if (livePercent >= 50) {
+                                  liveColor = '#f59e0b';
+                                  liveBorder = 'border-amber-500/30';
+                                  liveBg = 'bg-amber-500/10';
+                                  liveText = 'text-amber-400';
+                                  liveLabel = 'MODERATE';
+                                }
+                              }
+
+                              const predOccRate = isLocked ? 0 : Math.min(1.0, Math.max(0.05, (r.baseOccupancyRate || 0.4) * selectedSlotObj.multiplier));
+                              const predPercent = Math.round(predOccRate * 100);
+                              const predHeads = Math.round(r.capacity * predOccRate);
+
+                              return (
+                                <div
+                                  key={r.id}
+                                  className={`glass-hull p-4 rounded-xl space-y-3 transition-all border ${liveBorder} hover:scale-[1.01]`}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <span className="text-base font-mono font-bold text-white block tracking-wider">
+                                        {r.roomNumber}
+                                      </span>
+                                      <span className="text-[11px] text-slate-400 font-sans line-clamp-1">{r.buildingName} • {r.type}</span>
+                                    </div>
+                                    <span className={`inline-flex items-center font-mono font-semibold tracking-wider text-[9px] px-2 py-0.5 rounded border ${liveBorder} ${liveBg} ${liveText}`}>
+                                      {liveLabel}
+                                    </span>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-lg bg-slate-950/70 border border-white/[0.08] space-y-1.5 font-mono text-xs">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-slate-300 font-semibold flex items-center gap-1.5 text-[11px]">
+                                        <span className={`h-1.5 w-1.5 rounded-full ${isLocked ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`}></span>
+                                        {isLocked ? 'SECURITY LOCKDOWN:' : 'LIVE OCCUPANCY:'}
+                                      </span>
+                                      <span className="font-bold text-xs" style={{ color: liveColor }}>{isLocked ? '0%' : `${livePercent}%`}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-white/5">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${isLocked ? 100 : livePercent}%`, backgroundColor: liveColor }}
+                                      />
+                                    </div>
+                                    <div className="flex justify-between text-[11px] text-slate-400 pt-0.5">
+                                      <span>{isLocked ? 'Room Access:' : 'Live Headcount:'}</span>
+                                      <span className={isLocked ? 'text-rose-400 font-bold' : 'text-slate-200 font-semibold'}>
+                                        {isLocked ? 'SEALED & BARRED' : `${liveHeads} / ${r.capacity}`}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="p-2 rounded-lg bg-purple-950/20 border border-purple-500/20 space-y-1 font-mono text-xs">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-purple-300 text-[10px] uppercase font-semibold flex items-center gap-1">
+                                        <span>⏱️</span> FORECAST ({selectedSlotObj.id}):
+                                      </span>
+                                      <span className="font-bold text-[11px]" style={{ color: isLocked ? '#f43f5e' : '#10b981' }}>{isLocked ? 'LOCKED' : `${predPercent}%`}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-900/80 rounded-full h-1 overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${isLocked ? 0 : predPercent}%`, backgroundColor: '#10b981' }}
+                                      />
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-purple-200/70">
+                                      <span>Projected Status:</span>
+                                      <span className="text-purple-100 font-semibold">{isLocked ? 'Evacuated' : `${predHeads} / ${r.capacity}`}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-1.5 border-t border-white/[0.08] text-[11px] font-mono flex justify-between text-slate-400">
+                                    <span>Floor {r.floor}</span>
+                                    <span className={isLocked ? 'text-rose-400 font-bold' : 'text-[#00f5ff]'}>{r.nextAvailableTime}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1. DASHBOARD */}
+                {activeView === 'dashboard' && (
+                  <div className="space-y-6 section-scroll-container">
+                    
+                    <div className="glass-hull rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="cyan">DIGITAL TWIN HORIZON</Badge>
+                          <Badge variant="green">PREDICTIVE CROWD SIMULATOR</Badge>
+                          {activeEmergency && <Badge variant="red">CAMPUS EMERGENCY ACTIVE</Badge>}
+                        </div>
+                        <h1 className="text-2xl md:text-3xl font-bold uppercase text-white tracking-tight">CAMPUS METRIC NEXUS</h1>
+                        <p className="text-slate-400 text-xs md:text-sm mt-1 max-w-2xl leading-relaxed">
+                          Filter by category and simulate crowd density dynamically across future time intervals (+1h, +2h).
+                        </p>
+                      </div>
+
+                      <div className="flex items-center p-1.5 bg-[#070e20] border border-white/[0.08] rounded-xl self-start md:self-auto shrink-0 font-mono text-xs">
+                        <button
+                          onClick={() => setDimensionMode('3D')}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+                            dimensionMode === '3D'
+                              ? 'bg-[#00f5ff] text-slate-950 font-bold shadow-[0_0_15px_rgba(0,245,255,0.45)]'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Icons.Box className="h-3.5 w-3.5" />
+                          <span>3D View</span>
+                        </button>
+                        <button
+                          onClick={() => setDimensionMode('2D')}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+                            dimensionMode === '2D'
+                              ? 'bg-[#00f5ff] text-slate-950 font-bold shadow-[0_0_15px_rgba(0,245,255,0.45)]'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Icons.Map className="h-3.5 w-3.5" />
+                          <span>2D Plan</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CATEGORY FILTER BAR */}
+                    <div className="glass-hull p-3 rounded-2xl flex items-center gap-2 overflow-x-auto">
+                      <div className="flex items-center gap-2 text-xs font-mono font-semibold px-3 py-1 text-slate-400 shrink-0">
+                        <Icons.Layers className="h-4 w-4 text-[#00f5ff]" />
+                        <span>SECTOR:</span>
+                      </div>
+                      {facilityCategories.map(cat => {
+                        const isActive = selectedCategory === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => handleCategoryChange(cat.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 whitespace-nowrap border ${
+                              isActive
+                                ? 'bg-gradient-to-r from-cyan-500/25 to-sky-500/20 text-[#00f5ff] border-[#00f5ff]/60 shadow-[0_0_16px_rgba(0,245,255,0.3)] font-bold'
+                                : 'bg-slate-950/40 text-slate-400 border-white/[0.06] hover:border-white/20 hover:text-slate-200'
+                            }`}
+                          >
+                            <span>{cat.icon}</span>
+                            <span>{cat.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* PREDICTIVE TIME-OFFSET SELECTOR */}
+                    <div className="glass-hull p-3 rounded-2xl flex items-center gap-2 overflow-x-auto">
+                      <div className="flex items-center gap-2 text-xs font-mono font-semibold px-3 py-1 text-purple-300 shrink-0">
+                        <Icons.Timer className="h-4 w-4 text-purple-400" />
+                        <span>PREDICT:</span>
+                      </div>
+                      {predictiveTimeOffsets.map(tOffset => {
+                        const isActive = selectedTimeOffset === tOffset.id;
+                        return (
+                          <button
+                            key={tOffset.id}
+                            onClick={() => handleTimeChange(tOffset.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono transition-all duration-200 whitespace-nowrap border ${
+                              isActive
+                                ? 'bg-gradient-to-r from-purple-500/30 to-indigo-500/20 text-purple-200 border-purple-500/60 shadow-[0_0_16px_rgba(168,85,247,0.35)] font-bold'
+                                : 'bg-slate-950/40 text-slate-400 border-white/[0.06] hover:border-white/20 hover:text-slate-200'
+                            }`}
+                          >
+                            <span>⏱️</span>
+                            <span>{tOffset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                      <div className="glass-hull p-4 rounded-xl">
+                        <span className="text-[10px] font-mono tracking-widest text-slate-400 block font-semibold">PROJECTED LOAD</span>
+                        <div className="text-2xl font-bold font-mono text-white mt-1">{campusOccPct}%</div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">{totalOccupancy.toLocaleString()} active occupants</span>
+                      </div>
+                      <div className="glass-hull p-4 rounded-xl">
+                        <span className="text-[10px] font-mono tracking-widest text-slate-400 block font-semibold">SECTORS IN VIEW</span>
+                        <div className="text-2xl font-bold font-mono text-[#00f5ff] mt-1">{filteredBuildings.length} BLOCKS</div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">Matching filter</span>
+                      </div>
+                      <div className="glass-hull p-4 rounded-xl">
+                        <span className="text-[10px] font-mono tracking-widest text-slate-400 block font-semibold">PARKING OPEN</span>
+                        <div className="text-2xl font-bold font-mono text-amber-400 mt-1">{freeParking} BAYS</div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">Campus Hubs</span>
+                      </div>
+                      <div className="glass-hull p-4 rounded-xl">
+                        <span className="text-[10px] font-mono tracking-widest text-slate-400 block font-semibold">INCIDENTS</span>
+                        <div className="text-2xl font-bold font-mono text-rose-400 mt-1">{issues.filter(i=>i.status!=='RESOLVED').length} OPEN</div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">Pending triage</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2">
+                        {dimensionMode === '3D' ? (
+                          <CampusTwin3D onSelectBuilding={setSelectedBuilding} selectedBuilding={selectedBuilding} selectedCategory={selectedCategory} timeOffsetMultiplier={timeMultiplier} activeEmergency={activeEmergency} />
+                        ) : (
+                          <CampusTwin2D onSelectBuilding={setSelectedBuilding} selectedBuilding={selectedBuilding} selectedCategory={selectedCategory} timeOffsetMultiplier={timeMultiplier} activeEmergency={activeEmergency} />
+                        )}
+                      </div>
+
+                      {/* SECTOR DIAGNOSTICS WITH DEDICATED SCROLL CONTAINER */}
+                      <div className="glass-hull rounded-2xl p-5 flex flex-col h-[500px]">
+                        <div className="shrink-0 pb-3 border-b border-white/[0.08]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[#00f5ff] font-mono text-xs font-bold uppercase tracking-wider">Sector Diagnostics</span>
+                            <Badge variant="purple">{activeTimeObj.label}</Badge>
+                          </div>
+                          <h3 className="text-lg font-bold text-white mt-1 line-clamp-1">{selectedBuilding ? selectedBuilding.name : 'Select a Sector'}</h3>
+                          <span className="text-xs text-slate-400 block">{selectedBuilding ? `${selectedBuilding.type} • ${selectedBuilding.levels} Storeys` : ''}</span>
+                        </div>
+
+                        {selectedBuilding && (
+                          <div className="flex-1 overflow-y-auto pr-1.5 py-3 space-y-3">
+                            <div className="p-3 rounded-xl border border-white/[0.06] bg-slate-950/60 space-y-2">
+                              <div className="flex justify-between text-xs font-mono">
+                                <span className="text-slate-400">Projected Headcount:</span>
+                                <span className="text-white font-bold">{selectedBuilding.currentOccupancy} / {selectedBuilding.capacity}</span>
+                              </div>
+                              <ProgressBar value={selectedBuilding.currentOccupancy} max={selectedBuilding.capacity} />
+                            </div>
+
+                            {/* Full Academic Classrooms Roster for Selected Sector */}
+                            {selectedBuilding.category === 'academics' && (
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center text-[11px] font-mono uppercase text-slate-400">
+                                  <span className="font-semibold">All Active Classes:</span>
+                                  <span className="text-[#00f5ff] font-bold">
+                                    {selectedBuildingRooms.length} Rooms
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px] max-h-40 overflow-y-auto pr-1">
+                                  {selectedBuildingRooms.map(rm => (
+                                    <div key={rm.id} className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] flex justify-between items-center hover:border-white/20 transition-all">
+                                      <span className="text-slate-200 font-bold">{rm.roomNumber}</span>
+                                      <span className={`h-1.5 w-1.5 rounded-full ${rm.currentStatus === 'AVAILABLE' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                              <span className="text-[11px] font-mono uppercase text-slate-400 block font-semibold">Registered Amenities:</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedBuilding.amenities ? selectedBuilding.amenities.map((am, i) => (
+                                  <span key={i} className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.08] text-slate-200 text-xs font-mono">
+                                    ✓ {am}
+                                  </span>
+                                )) : (
+                                  <span className="text-xs text-slate-500">Standard Hub</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="p-3 rounded-xl border border-white/[0.06] bg-slate-950/60 text-xs font-mono space-y-1.5">
+                              <div className="flex justify-between"><span className="text-slate-400">Time Simulation:</span> <span className="text-purple-300 font-bold uppercase">{activeTimeObj.label}</span></div>
+                              <div className="flex justify-between"><span className="text-slate-400">HVAC Status:</span> <span className="text-emerald-400 font-bold">Auto-Adjusted</span></div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pt-3 border-t border-white/[0.08] shrink-0">
+                          <button onClick={()=>setActiveView('report-issue')} className="w-full py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-xs font-bold text-white transition-all">
+                            Dispatch Facility Ticket (!)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. COMMAND CENTER */}
+                {activeView === 'command-center' && currentUser.role === 'admin' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center border-l-4 border-l-[#00f5ff]">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">CAMPUS COMMAND DECK</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Automated telemetry diagnostics and administrative triage</p>
+                      </div>
+                      <Badge variant="cyan">ADMIN RADAR</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="glass-hull p-5 rounded-2xl space-y-4">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400">Parking Capacity Live Radar</h3>
+                        <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-2">
+                          {parkingZones.map(p => (
+                            <div key={p.id} className="p-3.5 rounded-xl border border-white/[0.06] bg-slate-950/60 space-y-2">
+                              <div className="flex justify-between text-xs font-mono">
+                                <span className="font-bold text-white">{p.name}</span>
+                                <span className="text-emerald-400 font-semibold">{p.totalSpaces - p.occupiedSpaces} slots open</span>
+                              </div>
+                              <ProgressBar value={p.occupiedSpaces} max={p.totalSpaces} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="glass-hull p-5 rounded-2xl space-y-4">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-rose-400">Incident Triage Stream</h3>
+                        <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-2">
+                          {issues.map(iss => (
+                            <div key={iss.id} className="p-3.5 rounded-xl border border-white/[0.06] bg-slate-950/60 space-y-1.5">
+                              <div className="flex justify-between items-start">
+                                <span className="font-bold text-slate-200 text-sm">{iss.title}</span>
+                                <Badge variant={iss.priority==='CRITICAL'?'red':(iss.priority==='LIGHT'?'green':'yellow')}>{iss.priority}</Badge>
+                              </div>
+                              <p className="text-slate-400 text-xs">📍 {iss.location}</p>
+                              {iss.category && <p className="text-[#00f5ff] text-[10px] font-mono">Category: {iss.category}</p>}
+                              <p className="text-slate-300 text-xs">{iss.description}</p>
+                              <div className="flex justify-between items-center pt-2">
+                                <span className="text-[11px] font-mono text-slate-500">Status: <span className="text-slate-300 font-semibold">{iss.status}</span></span>
+                                {iss.status !== 'RESOLVED' && (
+                                  <button
+                                    onClick={()=>handleUpdateIssue(iss.id, 'RESOLVED')}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-mono font-semibold transition-all"
+                                  >
+                                    Mark Resolved
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. CAMPUS MAP */}
+                {activeView === 'map' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Campus Digital Spatial Twin</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">High-precision 2D planar topology</p>
+                      </div>
+                      <Badge variant="cyan">GPS BOUNDED</Badge>
+                    </div>
+
+                    <CampusTwin2D onSelectBuilding={setSelectedBuilding} selectedBuilding={selectedBuilding} selectedCategory={selectedCategory} timeOffsetMultiplier={timeMultiplier} activeEmergency={activeEmergency} />
+                  </div>
+                )}
+
+                {/* 4. ROOMS & LABS */}
+                {activeView === 'rooms' && (
+                  <div className="space-y-4 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="cyan">COMPLETE DIRECTORY</Badge>
+                          <Badge variant="green">{evaluatedRooms.filter(r => r.currentStatus === 'AVAILABLE').length} AVAILABLE NOW</Badge>
+                          {activeEmergency && <Badge variant="red">LOCKDOWN APPLIED</Badge>}
+                        </div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Classrooms &amp; Research Laboratories</h2>
+                        <p className="text-xs text-slate-400 mt-0.5 font-mono">
+                          Format: [Building No]: [Floor][Room 01-10] • Showing {displayRoomsList.length} of {evaluatedRooms.length} total monitored rooms
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+                        <button
+                          onClick={() => setRoomFilterBuilding('all')}
+                          className={`px-3 py-1.5 rounded-xl border transition-all ${
+                            roomFilterBuilding === 'all'
+                              ? 'bg-[#00f5ff]/20 border-[#00f5ff] text-[#00f5ff] font-bold'
+                              : 'bg-slate-950/60 border-white/[0.08] text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          All ({evaluatedRooms.length})
+                        </button>
+                        {academicBuildings.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => setRoomFilterBuilding(b.id)}
+                            className={`px-3 py-1.5 rounded-xl border transition-all ${
+                              roomFilterBuilding === b.id
+                                ? 'bg-purple-500/20 border-purple-400 text-purple-300 font-bold'
+                                : 'bg-slate-950/60 border-white/[0.08] text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {b.subBlocks || `Block ${b.buildingNo}`} ({evaluatedRooms.filter(r => r.buildingId === b.id).length})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="glass-hull rounded-2xl p-4 overflow-hidden border border-white/[0.08]">
+                      <div className="max-h-[560px] overflow-y-auto pr-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                          {displayRoomsList.map(r => {
+                            const isLocked = r.currentStatus === 'UNAVAILABLE';
+                            return (
+                              <div key={r.id} className={`p-3.5 rounded-xl bg-slate-950/60 border ${isLocked ? 'border-rose-500/50 bg-rose-950/10' : 'border-white/[0.06] hover:border-white/20'} transition-all space-y-2.5`}>
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <span className="text-sm font-mono font-bold text-white block tracking-wider">{r.roomNumber}</span>
+                                    <span className="text-[11px] text-slate-400 font-sans line-clamp-1">{r.buildingName}</span>
+                                  </div>
+                                  <Badge variant={isLocked ? 'red' : (r.currentStatus === 'AVAILABLE' ? 'green' : 'red')}>
+                                    {isLocked ? 'LOCKDOWN' : r.currentStatus}
+                                  </Badge>
+                                </div>
+                                <div className="pt-2 border-t border-white/[0.06] text-[11px] space-y-1 font-mono">
+                                  <div className="flex justify-between"><span className="text-slate-500">Floor Level:</span> <span className="text-slate-300">Level {r.floor}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Category:</span> <span className="text-slate-300 line-clamp-1 max-w-[140px]">{r.type}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Capacity:</span> <span className="text-slate-300">{r.capacity} seats</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-500">Next Slot:</span> <span className={isLocked ? 'text-rose-400 font-bold' : 'text-[#00f5ff] font-semibold'}>{r.nextAvailableTime}</span></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. SMART PARKING */}
+                {activeView === 'parking' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Smart Parking &amp; EV Bays</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Ultrasonic ground occupancy telemetry</p>
+                      </div>
+                      <Badge variant="yellow">{freeParking} BAYS OPEN</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {parkingZones.map(p => (
+                        <div key={p.id} className="glass-hull p-5 rounded-2xl space-y-3">
+                          <div className="flex justify-between items-start">
+                            <span className="text-base font-bold text-white block">{p.name}</span>
+                            <Badge variant={p.status==='SATURATED'?'red':'green'}>{p.status}</Badge>
+                          </div>
+                          <div className="text-2xl font-mono font-bold text-white">
+                            {p.totalSpaces - p.occupiedSpaces} <span className="text-xs text-slate-400 font-normal">free / {p.totalSpaces} bays</span>
+                          </div>
+                          <ProgressBar value={p.occupiedSpaces} max={p.totalSpaces} />
+                          <div className="text-xs text-[#00f5ff] pt-1 font-mono">
+                            ⚡ EV Hub: {p.evFree} of {p.evTotal} ready
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. CROWD ANALYTICS */}
+                {activeView === 'crowd' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Foot-Traffic Density Profile</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">24-hour diurnal sensor distribution profile</p>
+                      </div>
+                      <Badge variant="cyan">{campusOccPct}% GROSS OCCUPANCY</Badge>
+                    </div>
+
+                    <div className="glass-hull p-6 rounded-2xl space-y-5">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">Diurnal Congestion Curve</h3>
+                        <span className="text-xs text-[#00f5ff] font-mono">Wi-Fi &amp; Turnstile Aggregation</span>
+                      </div>
+                      <div className="h-44 flex items-end gap-2 pt-4 border-b border-white/[0.08] pb-2">
+                        {[15, 30, 72, 88, 90, 94, 100, 95, 89, 84, 75, 68, 60, 48, 35, 25].map((val, idx) => (
+                          <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 group">
+                            <div
+                              className="w-full rounded-t bg-gradient-to-t from-[#00f5ff] to-cyan-200 group-hover:from-rose-500 group-hover:to-amber-400 transition-all"
+                              style={{ height: `${val * 1.3}px` }}
+                            />
+                            <span className="text-[10px] font-mono text-slate-500">{6 + idx}h</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Peak campus movement corresponds with university dining periods (12:30 PM) and laboratory migration windows.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. EVENTS */}
+                {activeView === 'events' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Campus Assemblage &amp; Events</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Live turnstile registration and crowd load</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {currentUser.role === 'admin' && (
+                          <button
+                            onClick={() => setShowNewEventModal(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-[#00f5ff] hover:bg-cyan-500/30 text-xs font-mono font-bold transition-all"
+                          >
+                            + Declare Event
+                          </button>
+                        )}
+                        <Badge variant="purple">{events.length} EVENTS</Badge>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {events.map(evt => (
+                        <div key={evt.id} className="glass-hull p-5 rounded-2xl space-y-3">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-white text-base">{evt.title}</span>
+                            <Badge variant={evt.status==='IN PROGRESS'?'green':'cyan'}>{evt.status}</Badge>
+                          </div>
+                          <p className="text-slate-400 text-xs">📍 {evt.location} • ⏰ {evt.time}</p>
+                          <div className="space-y-1 pt-2 font-mono">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-400">Headcount:</span>
+                              <span className="text-[#00f5ff] font-bold">{evt.currentAttendance} / {evt.expectedCrowd}</span>
+                            </div>
+                            <ProgressBar value={evt.currentAttendance} max={evt.expectedCrowd} />
+                          </div>
+                          {currentUser.role === 'admin' && evt.status !== 'IN PROGRESS' && (
+                            <div className="pt-2 border-t border-white/[0.08]">
+                              <button
+                                onClick={() => handleStartEvent(evt.id)}
+                                className="w-full py-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold rounded-xl transition-all"
+                              >
+                                ▶ Start Event &amp; Broadcast Alert
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. REPORTED ISSUES */}
+                {activeView === 'issues' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Reported Faults &amp; Dispatch</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {currentUser.role === 'admin' 
+                            ? 'Admin clearance active: review incidents and mark resolutions.' 
+                            : 'Student monitoring view: live status of reported campus facility tickets.'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setActiveView('report-issue')}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-mono font-bold transition-all flex items-center gap-1.5"
+                        >
+                          <span className="font-black text-sm">!</span>
+                          <span>Report Issue</span>
+                        </button>
+                        <Badge variant="red">{issues.filter(i=>i.status!=='RESOLVED').length} TICKETS OPEN</Badge>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {issues.map(iss => (
+                        <div key={iss.id} className="glass-hull p-4 rounded-xl space-y-2.5">
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-bold text-white text-sm">{iss.title}</span>
+                            <Badge variant={iss.status==='RESOLVED'?'green':'red'}>{iss.status}</Badge>
+                          </div>
+                          <p className="text-slate-400 text-xs">📍 {iss.location}</p>
+                          {iss.category && <p className="text-[#00f5ff] text-[10px] font-mono">Category: {iss.category}</p>}
+                          {iss.reportedBy && <p className="text-slate-500 text-[10px] font-mono">Reported by: {iss.reportedBy}</p>}
+                          <p className="text-slate-300 text-xs">{iss.description}</p>
+                          
+                          <div className="pt-2 border-t border-white/[0.08] flex justify-between items-center font-mono">
+                            <Badge variant={iss.priority==='CRITICAL'?'red':(iss.priority==='LIGHT'?'green':'yellow')}>
+                              {iss.priority}
+                            </Badge>
+
+                            {currentUser.role === 'admin' ? (
+                              iss.status !== 'RESOLVED' ? (
+                                <button
+                                  onClick={()=>handleUpdateIssue(iss.id, 'RESOLVED')}
+                                  className="px-3 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 text-xs font-semibold transition-all"
+                                >
+                                  Resolve Issue
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-emerald-400">✓ Resolved</span>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-slate-500 italic">
+                                {iss.status === 'RESOLVED' ? '✓ Resolved' : 'Pending Admin Triage'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 9. AI FORECAST & ANOMALY DETECTION */}
+                {activeView === 'forecast' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-purple-500">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="purple">PREDICTIVE AI V3</Badge>
+                          <Badge variant="red">LIVE SENSOR ANOMALIES</Badge>
+                        </div>
+                        <h2 className="text-2xl font-bold uppercase text-white tracking-tight">AI FORECAST &amp; ANOMALY DETECTION</h2>
+                        <p className="text-xs text-purple-200 mt-1 max-w-2xl font-mono leading-relaxed">
+                          Dual-engine intelligence: Forecast algorithms predict future trends, while real-time sensor streams flag sudden out-of-the-blue crowd spikes in usually vacant zones.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono text-xs">
+                        <span className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-bold">
+                          {sensorAnomalies.length} Active Anomalies
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center px-1">
+                        <div>
+                          <h3 className="text-sm font-bold uppercase text-white tracking-wider flex items-center gap-2 font-mono">
+                            <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
+                            <span>Live Sensor Anomaly Feeds</span>
+                            <span className="text-[10px] text-slate-400 font-normal">(Real-Time Sensor Telemetry vs Historical Baseline)</span>
+                          </h3>
+                        </div>
+                        <Badge variant="red">ANOMALY TRIGGER: SPIKE &gt; 3.0x</Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {sensorAnomalies.map(anom => (
+                          <div key={anom.id} className="glass-hull p-4 rounded-xl border border-rose-500/30 space-y-3 relative overflow-hidden">
+                            <div className="flex justify-between items-start">
+                              <span className="font-mono text-xs font-bold text-white leading-snug line-clamp-1">{anom.location}</span>
+                              <Badge variant={anom.severity === 'CRITICAL' ? 'red' : 'yellow'}>{anom.spikeFactor}</Badge>
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-slate-950/80 border border-white/[0.08] font-mono text-xs space-y-1.5">
+                              <div className="flex justify-between text-[11px] text-slate-400">
+                                <span>Sensor Relayed:</span>
+                                <span className="text-cyan-300 truncate max-w-[170px]">{anom.sensorSource}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-1 text-[11px]">
+                                <span className="text-slate-400">Normal Baseline:</span>
+                                <span className="text-slate-200 font-semibold">{anom.typicalBaselinePct}% (Quiet)</span>
+                              </div>
+                              <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-rose-400 font-bold">Observed Sensor Count:</span>
+                                <span className="text-rose-400 font-bold text-sm">{anom.liveObservedPct}% (Surge)</span>
+                              </div>
+                              <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" style={{ width: `${anom.liveObservedPct}%` }} />
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+                              ⚠️ <span className="font-bold text-white">Live Diagnostics:</span> {anom.diagnosis}
+                            </p>
+
+                            <div className="pt-2 border-t border-white/[0.08] flex justify-between items-center font-mono text-[10px] text-slate-400">
+                              <span>Spike logged: {anom.timestamp}</span>
+                              <span className="text-rose-400 font-bold">Unscheduled Crowd</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <div className="flex justify-between items-center px-1">
+                        <div>
+                          <h3 className="text-sm font-bold uppercase text-white tracking-wider flex items-center gap-2 font-mono">
+                            <Icons.BrainCircuit className="h-4 w-4 text-purple-400" />
+                            <span>Heuristic AI Demand Forecast</span>
+                            <span className="text-[10px] text-slate-400 font-normal">(Algorithmically Predicted Future Occupancy)</span>
+                          </h3>
+                        </div>
+                        <Badge variant="purple">60-MIN TIME HORIZON</Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {aiForecasts.map(fc => (
+                          <div key={fc.id} className="glass-hull p-5 rounded-2xl space-y-3 font-mono text-xs">
+                            <div className="flex justify-between items-start font-sans">
+                              <span className="font-bold text-white text-base">{fc.location}</span>
+                              <Badge variant="red">{fc.riskLevel} SURGE</Badge>
+                            </div>
+                            <div className="p-3 rounded-xl border border-white/[0.06] bg-slate-950/60 space-y-1.5">
+                              <div className="flex justify-between"><span>Current Live:</span><span className="text-white font-bold">{fc.currentOccupancyPct}%</span></div>
+                              <div className="flex justify-between"><span className="text-purple-300 font-bold">Predicted (60m):</span><span className="text-rose-400 font-bold">{fc.predictedOccupancyPct}%</span></div>
+                            </div>
+                            <p className="text-slate-300 text-xs font-sans leading-relaxed">
+                              💡 <span className="font-bold text-[#00f5ff]">Mitigation:</span> {fc.recommendation}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 10. DATA SOURCES */}
+                {activeView === 'sources' && (
+                  <div className="space-y-6 section-scroll-container">
+                    <div className="glass-hull p-5 rounded-2xl flex justify-between items-center">
+                      <div>
+                        <h2 className="text-xl font-bold uppercase text-white tracking-wide">Sensory Ingestion Pipeline</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Telemetry protocol bridge and edge relays</p>
+                      </div>
+                      <Badge variant="cyan">1,335 SENSORS ACTIVE</Badge>
+                    </div>
+
+                    <div className="glass-hull p-4 rounded-xl font-mono text-xs text-[#00f5ff] border-[#00f5ff]/20">
+                      Edge Telemetry &rarr; MQTT Protocol Broker &rarr; Kafka Pipeline &rarr; Spatial Twin Core &rarr; Real-Time UI
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono text-xs">
+                      {[
+                        { name: 'LoRaWAN Crowd Density Relays', proto: 'MQTT 915MHz', nodes: '142 Online' },
+                        { name: 'Ultrasonic Ground Radars', proto: 'NB-IoT', nodes: '700 Bays' },
+                        { name: 'Wi-Fi 6 AP Telemetry Ingestion', proto: 'Cisco DNA Webhook', nodes: '380 APs' },
+                        { name: 'Academic SIS Enrollment API', proto: 'REST Poller', nodes: '1 Central DB' },
+                        { name: 'Vision-AI Density Cameras', proto: 'RTSP Inference', nodes: '48 Cameras' },
+                        { name: 'HVAC Building Automation Systems', proto: 'BACnet/IP', nodes: '64 Units' }
+                      ].map((s, i) => (
+                        <div key={i} className="glass-hull p-4 rounded-xl space-y-1.5">
+                          <span className="font-bold text-white text-sm block font-sans">{s.name}</span>
+                          <span className="text-slate-400 block">{s.proto}</span>
+                          <Badge variant="green">{s.nodes}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
